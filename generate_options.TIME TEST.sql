@@ -357,3 +357,22 @@ PRINT 'Step 2 Duration: ' + CAST(@Duration2 AS VARCHAR) + ' ms (' + CAST(@Pct2 A
 PRINT 'Step 3 Duration: ' + CAST(@Duration3 AS VARCHAR) + ' ms (' + CAST(@Pct3 AS VARCHAR) + '%)';
 PRINT 'Total Duration: ' + CAST(@TotalDuration AS VARCHAR) + ' ms';
 
+/*
+
+--- Execution Time Summary ---
+Step 1 Duration: 1416371 ms
+Step 2 Duration: 98163 ms
+Step 3 Duration: 245139 ms
+Total Duration: 1759673 ms
+--- Execution Time Summary ---
+Step 1 Duration: 1416371 ms (80.49%)
+Step 2 Duration: 98163 ms (5.58%)
+Step 3 Duration: 245139 ms (13.93%)
+Total Duration: 1759673 ms
+
+Completion time: 2025-06-13T22:53:36.1500658+00:00
+
+29:19 minutes!!!
+
+*/
+
