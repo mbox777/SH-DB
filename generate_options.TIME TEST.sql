@@ -1,5 +1,6 @@
 --	USE RPTeBS_enGen_UAT
 --	GO
+-- Use RPTeBS_enGen_SHC_DEV
 
 
 
@@ -339,40 +340,83 @@ DECLARE @Pct1 DECIMAL(5,2) = (CAST(@Duration1 AS DECIMAL(10,2)) / @TotalDuration
 DECLARE @Pct2 DECIMAL(5,2) = (CAST(@Duration2 AS DECIMAL(10,2)) / @TotalDuration) * 100;
 DECLARE @Pct3 DECIMAL(5,2) = (CAST(@Duration3 AS DECIMAL(10,2)) / @TotalDuration) * 100;
 
-
 -- Print summary
+DECLARE @MaxLen INT = 9; 
 PRINT '--- Execution Time Summary ---';
-PRINT 'Step 1 Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @Step1Time) AS VARCHAR) + ' ms';
-PRINT 'Step 2 Duration: ' + CAST(DATEDIFF(MILLISECOND, @Step1Time, @Step2Time) AS VARCHAR) + ' ms';
-PRINT 'Step 3 Duration: ' + CAST(DATEDIFF(MILLISECOND, @Step2Time, @Step3Time) AS VARCHAR) + ' ms';
-PRINT 'Total Duration: ' + CAST(DATEDIFF(MILLISECOND, @StartTime, @EndTime) AS VARCHAR) + ' ms';
+PRINT 'Step 1 Duration: ' + RIGHT(REPLICATE(' ', @MaxLen) + FORMAT(@Duration1,     'N0'), @MaxLen) + ' ms (' + CAST(@Pct1 AS VARCHAR) + '%)';
+PRINT 'Step 2 Duration: ' + RIGHT(REPLICATE(' ', @MaxLen) + FORMAT(@Duration2,     'N0'), @MaxLen) + ' ms (' + CAST(@Pct2 AS VARCHAR) + '%)';
+PRINT 'Step 3 Duration: ' + RIGHT(REPLICATE(' ', @MaxLen) + FORMAT(@Duration3,     'N0'), @MaxLen) + ' ms (' + CAST(@Pct3 AS VARCHAR) + '%)';
+PRINT 'Total  Duration: ' + RIGHT(REPLICATE(' ', @MaxLen) + FORMAT(@TotalDuration, 'N0'), @MaxLen) + ' ms';
 
-
-
-
--- Print summary
-PRINT '--- Execution Time Summary ---';
-PRINT 'Step 1 Duration: ' + CAST(@Duration1 AS VARCHAR) + ' ms (' + CAST(@Pct1 AS VARCHAR) + '%)';
-PRINT 'Step 2 Duration: ' + CAST(@Duration2 AS VARCHAR) + ' ms (' + CAST(@Pct2 AS VARCHAR) + '%)';
-PRINT 'Step 3 Duration: ' + CAST(@Duration3 AS VARCHAR) + ' ms (' + CAST(@Pct3 AS VARCHAR) + '%)';
-PRINT 'Total Duration: ' + CAST(@TotalDuration AS VARCHAR) + ' ms';
 
 /*
 
---- Execution Time Summary ---
-Step 1 Duration: 1416371 ms
-Step 2 Duration: 98163 ms
-Step 3 Duration: 245139 ms
-Total Duration: 1759673 ms
---- Execution Time Summary ---
-Step 1 Duration: 1416371 ms (80.49%)
-Step 2 Duration: 98163 ms (5.58%)
-Step 3 Duration: 245139 ms (13.93%)
-Total Duration: 1759673 ms
+29:19 minutes!!!  I think in RPTeBS_enGen_UAT
+29:19 minutes!!!  I think in RPTeBS_enGen_UAT
+	--- Execution Time Summary ---
+	Step 1 Duration: 1,416,371 ms (80.49%)
+	Step 2 Duration:    98,163 ms (5.58%)
+	Step 3 Duration:   245,139 ms (13.93%)
+	Total  Duration: 1,759,673 ms
+	Total  Duration:    22,545 ms
 
-Completion time: 2025-06-13T22:53:36.1500658+00:00
+	Completion time: 2025-06-13T22:53:36.1500658+00:00
 
-29:19 minutes!!!
+
+
+RPTeBS_enGen_SHC_DEV	Only 23 seconds b/c not enough data using mbw table
+RPTeBS_enGen_SHC_DEV	Only 23 seconds b/c not enough data using mbw table
+
+	--- Execution Time Summary ---
+	Step 1 Duration:    16,664 ms (73.91%)
+	Step 2 Duration:     2,052 ms (9.10%)
+	Step 3 Duration:     3,829 ms (16.98%)
+	Total  Duration:    22,545 ms
+
+	Completion time: 2025-06-14T15:51:24.6227824-04:00
+
+
+take 2
+	--- Execution Time Summary ---
+	Step 1 Duration:    13,351 ms (71.19%)
+	Step 2 Duration:     1,794 ms (9.57%)
+	Step 3 Duration:     3,609 ms (19.24%)
+	Total  Duration:    18,754 ms
+
+	Completion time: 2025-06-14T16:35:56.6557134-04:00
+
+
+
+
+
+
+
+
+
+
+
+
+
+select count(1) from Temp.PRPHOptions
+select count(1) from Temp.FullProvisionOption
+select count(1) from Temp.FinalProvisionOptions
+
+0 b/c the've been deleted most likely
+select count(1) from RPTeBS_enGen_WGS.Temp.PRPHOptions
+select count(1) from RPTeBS_enGen_WGS.Temp.FullProvisionOption
+select count(1) from RPTeBS_enGen_WGS.Temp.FinalProvisionOptions
+
+select count(1) from RPTeBS_enGen_UAT.Temp.PRPHOptions
+select count(1) from RPTeBS_enGen_UAT.Temp.FullProvisionOption
+select count(1) from RPTeBS_enGen_UAT.Temp.FinalProvisionOptions
+
+
+select count(1) from Temp.mbw_PRPHOptions
+select count(1) from Temp.mbw_FullProvisionOption
+select count(1) from Temp.mbw_FinalProvisionOptions
+
+
+
 
 */
 
