@@ -351,7 +351,10 @@ PRINT 'Total  Duration: ' + RIGHT(REPLICATE(' ', @MaxLen) + FORMAT(@TotalDuratio
 
 /*
 
-29:19 minutes!!!  I think in RPTeBS_enGen_UAT
+RPTeBS_enGen_UAT can't be executed with tmgreadonly		Msg 50000, Level 14, State 1, Line 319
+														The EXECUTE permission was denied on the object 'GetProvisionTextOptions', database 'RPTeBS_enGen_UAT', schema 'MASTER'.
+
+29:19 minutes!!!  I think in RPTeBS_enGen_UAT, but I can't get into it with wgsuser...
 29:19 minutes!!!  I think in RPTeBS_enGen_UAT
 	--- Execution Time Summary ---
 	Step 1 Duration: 1,416,371 ms (80.49%)
@@ -364,8 +367,8 @@ PRINT 'Total  Duration: ' + RIGHT(REPLICATE(' ', @MaxLen) + FORMAT(@TotalDuratio
 
 
 
-RPTeBS_enGen_SHC_DEV	Only 23 seconds b/c not enough data using mbw table
-RPTeBS_enGen_SHC_DEV	Only 23 seconds b/c not enough data using mbw table
+RPTeBS_enGen_SHC_DEV, wgsuser	Only 23 seconds b/c not enough data using mbw table
+RPTeBS_enGen_SHC_DEV, wgsuser	Only 23 seconds b/c not enough data using mbw table
 
 	--- Execution Time Summary ---
 	Step 1 Duration:    16,664 ms (73.91%)

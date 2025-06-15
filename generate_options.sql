@@ -9,6 +9,15 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 
+
+-- Declare variables to store timestamps
+DECLARE @StartTime DATETIME2 = SYSDATETIME();
+DECLARE @Step1Time DATETIME2;
+DECLARE @Step2Time DATETIME2;
+DECLARE @Step3Time DATETIME2;
+DECLARE @EndTime   DATETIME2;
+
+
 /**************************************************************************************************
 Name
 		[Temp].[Getproductprovisionlines]
@@ -43,6 +52,10 @@ declare
 	SET NOCOUNT ON;
 	-- This XACT_ABORT ON setting will rollback entire transaction if there is any single error & stop further processing of the SP
 	SET XACT_ABORT ON;
+
+-- debugging
+set nocount off
+	
 	--Try block added for error handling if any
 	BEGIN TRY 
 
@@ -58,12 +71,12 @@ declare
 			if object_id('Temp.mbwNew_FinalProvisionOptions')	is not null begin truncate table Temp.mbwNew_FinalProvisionOptions	;select 'truncated table 3' end
 			
 			if object_id('Temp.mbwNew_PRPHOptions')				is     null begin RAISERROR('must create table 1.', 16, 1); end 
-			if object_id('Temp.mbwNew_FullProvisionOption')		is     null begin RAISERROR('must create table 2.', 16, 1); end 
-			if object_id('Temp.mbwNew_FinalProvisionOptions')	is     null begin RAISERROR('must create table 3.', 16, 1); end 
+--			if object_id('Temp.mbwNew_FullProvisionOption')		is     null begin RAISERROR('must create table 2.', 16, 1); end 
+--			if object_id('Temp.mbwNew_FinalProvisionOptions')	is     null begin RAISERROR('must create table 3.', 16, 1); end 
 		end
 
 
--- Showing e
+-- Showing equivalence
 --		--Generating Provisions data
 --		; WITH svh  As  (
 --			-- Second: Get the values from [sv_medical_service] for the identified [svh_medical_service_history] records
@@ -143,59 +156,104 @@ declare
 			FROM		svh			  P1 
 			INNER JOIN	svh_hierarchy M  ON M.sv_id = P1.PARN_SV_ID -- Find childredn	mbw: the -> seems backwards, but hey...
 		)
-		--select 'new',* from svh_hierarchy
+select 'new, to move below and use later',count(1) as 'count' from svh_hierarchy
 
 
---if 123=456 begin
---		-- Note: This big table is the final answer, except for needing to add "options" which is done using...
---		--							1      2              3                  4               5
---		--			select DISTINCT pr_id, APL_TO_PRP_ID, service_provision, prp_eff_frm_dt, prp_eff_to_dt,   plus the dbo.StringConcat on TextOption generated here
---		--		 ... so find out if there are multiple TextOption for a given combo of thoes 
+		-- Note: This big table is the final answer, except for needing to add "options" which is done using...
+		--							1      2              3                  4               5
+		--			select DISTINCT pr_id, APL_TO_PRP_ID, service_provision, prp_eff_frm_dt, prp_eff_to_dt,   plus the dbo.StringConcat on TextOption generated here
+		--		 ... so find out if there are multiple TextOption for a given combo of thoes 
 
---		-- Use the CTE
---		Select Distinct		-- mbw: crazy computionally to do the sort this way  ?? Are there sort orders on any of the lookup tables?  Could select the fields in sorted order from lookups and index this table by those ints for sort field 1,2
---			/* fld srt*/
---			/*  1	  */	A  .pr_id,															-- 1 of 5/6		A
---			/*  2	1 */	c3 .COPTT_DESC_T				as TemplateType,
+		-- Just see how many records there are from the inner joins
+		insert into Temp.mbwNew_PRPHOptions
+		-- Specify the "A" and "c" table entries
+		(			
+			/*  1	  */	/*A.*/pr_id,															-- 1 of 5/6		A
+			/*  2	1 */	/*c3 .COPTT_DESC_T					as */TemplateType,
+			/*  4  10 */	/*A.*/apl_to_prp_ord_n,
+			/*  5	8 */	/*A.*/apl_to_prp_id,													-- 2 of 5/6		A
+			/*  6	9 */	/*A.*/prp_id,
+			/* 10	  */	/*A.*/sv_id,
+			/* 11	  */	/*A.*/prp_stus_c,
+			/* 12	7 */	/*A  .prp_eff_frm_dt				As */prp_eff_frm_dt,				-- 4 of 5/6		A
+			/* 13	  */	/*A  .prp_eff_to_dt					As */prp_eff_to_dt,					-- 5 of 5/6		A
+			/* 18	  */	/*convert(varchar(50),A.prp_vlu)	AS */prp_vlu,
+			/* 19	  */	/*A.*/mnm_prp_vlu,
+			/* 20	  */	/*A.*/max_prp_vlu,
+			/* 21	  */	/*A.*/prp_prd_vincrm_vlu,
+			/* 23	  */	/*A.*/prp_vlu_t_set_id,
+			/* 30	  */	/*A  .prp_prd_vlu					As */[Period Number(PRP_PRD_VLU)],
+			/* 32	  */	/*A  .p_prp_vlu_t_set_id			As */[Period TextSet],
+			/* 33	  */	/*A  .mnm_prp_prd_vlu				As */[Period Min],
+			/* 34	  */	/*A  .max_prp_prd_vlu				As */[Period Max],
+			/* 35	  */	/*A  .PRP_VLU_INCRM_VLU				AS */[Period Increment Value],
+			/* 36	  */	/*A.*/deps_on_prp_id,
+			/* 37	  */	/*A.*/deps_on_prp_ord_n,
+			/* 38	  */	/*A.*/prp_inter_dep_prp_id,
+			/* 39	3 */	/*A.*/prp_lim_for_prp_id,
+			/* 40	  */	/*A.*/prph_prsn_ord_n
+			-- Extra fields from "A" that need to be saved to run the Master.GetProvisionTextOptions func later
+			/* 42     */ ,	/*A.prp_vlu							as */[prp_vlu_InOrigDecimal]
+			-- Extra int fields from "A" that are used in the left join replacements
+			/* 43     */ ,	/*A.*/bnt_id
+			/* 44     */ ,	/*A.*/PRP_TYP_C			
+			/* 45     */ ,	/*A.*/prp_typ_qlfr_c		
+			/* 46     */ ,	/*A.*/prp_lin_typ_c		
+			/* 47     */ ,	/*A.*/prp_stdz_lvl_c		
+			/* 48     */ ,	/*A.*/prp_vlu_clmn_c		
+			/* 49     */ ,	/*A.*/prp_vlu_typ_c		
+			/* 50     */ ,	/*A.*/p_prp_vlu_t_id		
+			/* 51     */ ,	/*A.*/apl_to_prp_rel_c	
+			/* 52     */ ,	/*A.*/deps_on_prp_rel_c	
+			/* 53     */ ,	/*A.*/prp_vlu_t_id		
+			/* 54     */ ,	/*A.*/prp_vlu_uom_c		
+			/* 55     */ ,	/*A.*/prp_prd_vlu_clmn_c	
+			/* 56     */ ,	/*A.*/prp_prd_vlu_uom_c	
+
+		)
+		Select Distinct		-- mbw: crazy computionally to do the sort this way  ?? Are there sort orders on any of the lookup tables?  Could select the fields in sorted order from lookups and index this table by those ints for sort field 1,2
+			/* fld srt*/
+			/*  1	  */	A  .pr_id,															-- 1 of 5/6		A
+			/*  2	1 */	c3 .COPTT_DESC_T				as TemplateType,
 --			/*  3	2 */	c2 .COPTC_DESC_T				as ProductType,
 --								-- << Here is where "options" as a filtered version of TextOption will go
---			/*  4  10 */	A  .apl_to_prp_ord_n,
---			/*  5	8 */	A  .apl_to_prp_id,													-- 2 of 5/6		A
---			/*  6	9 */	A  .prp_id,
+			/*  4  10 */	A  .apl_to_prp_ord_n,
+			/*  5	8 */	A  .apl_to_prp_id,													-- 2 of 5/6		A
+			/*  6	9 */	A  .prp_id,
 --			/*  7	4 */	Ltrim(Rtrim(B.LevelWithName))	AS [Service Name],
 --			/*  8	5 */	Ltrim(Rtrim(B1.bnt_nm))			as [Network Name],									
 --			/*  9	6 */	Ltrim(Rtrim(B2.copptc_desc_t))	As SERVICE_PROVISION,				-- 3 of 5/6		B2	(is left joined)
---			/* 10	  */	A  .sv_id,
---			/* 11	  */	A  .prp_stus_c,
---			/* 12	7 */	A  .prp_eff_frm_dt				As prp_eff_frm_dt,					-- 4 of 5/6		A
---			/* 13	  */	A  .prp_eff_to_dt				As prp_eff_to_dt,					-- 5 of 5/6		A
+			/* 10	  */	A  .sv_id,
+			/* 11	  */	A  .prp_stus_c,
+			/* 12	7 */	A  .prp_eff_frm_dt				As prp_eff_frm_dt,					-- 4 of 5/6		A
+			/* 13	  */	A  .prp_eff_to_dt				As prp_eff_to_dt,					-- 5 of 5/6		A
 --			/* 14	  */	B3 .copptq_desc_t				As Qualifier,
 --			/* 15	  */	B4 .coplt_desc_t				As LineType,
 --			/* 16	  */	B7 .copvt_desc_t				As [Value Relativity(COPVT)],
 --			/* 17	  */	B12.copvu_desc_t				As [Value Unit(COPVU)],
---			/* 18	  */	convert(varchar(50),A.prp_vlu)	AS prp_vlu,
---			/* 19	  */	A  .mnm_prp_vlu,
---			/* 20	  */	A  .max_prp_vlu,
---			/* 21	  */	A  .prp_prd_vincrm_vlu,
+			/* 18	  */	convert(varchar(50),A.prp_vlu)	AS prp_vlu,
+			/* 19	  */	A  .mnm_prp_vlu,
+			/* 20	  */	A  .max_prp_vlu,
+			/* 21	  */	A  .prp_prd_vincrm_vlu,
 --			/* 22	  */	B11.prptv_nm					As [TextValue (PRPTV)],
---			/* 23	  */	A  .prp_vlu_t_set_id,
+			/* 23	  */	A  .prp_vlu_t_set_id,
 --			/* 24	  */	B9 .coppr_desc_t				AS [Applies To (COPPR)],
 --			/* 25	  */	B10.coppr_desc_t				AS [Depends On (COPPR)],
 --			/* 26	  */	B5 .cobsl_desc_t				As [Standardization level (COBSL)],
 --			/* 27	  */	B6 .copvc_desc_t				As [Value Type(COPVC)] ,
 --			/* 28	  */	B13.coppvc_desc_t				As [Period Type(COPPVC)],
 --			/* 29	  */	B14.coppvu_desc_t				As [Period Unit(COPPVU)],
---			/* 30	  */	A  .prp_prd_vlu					As [Period Number(PRP_PRD_VLU)],
+			/* 30	  */	A  .prp_prd_vlu					As [Period Number(PRP_PRD_VLU)],
 --			/* 31	  */	B8 .prpptv_nm					As [Period TextValue(PRPPTV)],
---			/* 32	  */	A  .p_prp_vlu_t_set_id			As [Period TextSet],
---			/* 33	  */	A  .mnm_prp_prd_vlu				As [Period Min],
---			/* 34	  */	A  .max_prp_prd_vlu				As [Period Max],
---			/* 35	  */	A  .PRP_VLU_INCRM_VLU			AS [Period Increment Value],
---			/* 36	  */	A  .deps_on_prp_id,
---			/* 37	  */	A  .deps_on_prp_ord_n,
---			/* 38	  */	A  .prp_inter_dep_prp_id,
---			/* 39	3 */	A  .prp_lim_for_prp_id,
---			/* 40	  */	A  .prph_prsn_ord_n,
+			/* 32	  */	A  .p_prp_vlu_t_set_id			As [Period TextSet],
+			/* 33	  */	A  .mnm_prp_prd_vlu				As [Period Min],
+			/* 34	  */	A  .max_prp_prd_vlu				As [Period Max],
+			/* 35	  */	A  .PRP_VLU_INCRM_VLU			AS [Period Increment Value],
+			/* 36	  */	A  .deps_on_prp_id,
+			/* 37	  */	A  .deps_on_prp_ord_n,
+			/* 38	  */	A  .prp_inter_dep_prp_id,
+			/* 39	3 */	A  .prp_lim_for_prp_id,
+			/* 40	  */	A  .prph_prsn_ord_n,
 --							-- mbw: Take the calculation out of the distinct.  This func should be deterministic on the inputs, and shouldn't need to be synced
 --							--		TODO: Figure whether pulling it out can work, since not all fields are in the table, and the TextOption fields is in the distinct 41 field...
 --							--		TODO: Decide whether to do this here or if it's pulled out here, or to do this below in a 7 field new table fixing the 6 field CTE
@@ -205,18 +263,18 @@ declare
 --								/* b4   */	coplt_desc_t,			-- As LineType
 --								/* b2   */	copptc_desc_t,			-- As SERVICE_PROVISION		
 --								/* b3   */	copptq_desc_t,			-- As [Value Unit(COPVU)]
---								/* 1015 */	prp_vlu_clmn_c,			-- This 1015 fiels is not in results so need to add to table if we use a bulk updates later
---								/* in   */	prp_vlu,				-- This 1015 field is in the results
+--								/* 1015 */	prp_vlu_clmn_c,			--									1015 field NOT in results so need to add to table
+--								/* in   */	prp_vlu,				--									1015 field     in the results, but func needs float not char
 --								/* b12  */	copvu_desc_t,			-- As [Value Unit(COPVU)]
---								/* in   */	mnm_prp_vlu,			-- This 1015 field is in the results
---								/* in   */	max_prp_vlu,			-- This 1015 field is in the results
+--								/* in   */	mnm_prp_vlu,			--									1015 field
+--								/* in   */	max_prp_vlu,			-fs-									1015 field
 --								/* b11  */	prptv_nm,				-- As [TextValue (PRPTV)]
---								/* in   */	prp_vlu_incrm_vlu,		-- This 1015 field is in the results (as [Period Increment Value] name)
---								/* 1015 */	prp_prd_vlu_clmn_c,		-- This 1015 field is not in results so need to add to table if we use a bulk updates later
---								/* in   */	prp_prd_vlu,			-- This 1015 field is in the results (as [Period Number(PRP_PRD_VLU)] name)
+--								/* in   */	prp_vlu_incrm_vlu,		-- as [Period Increment Value]		1015 field 
+--								/* 1015 */	prp_prd_vlu_clmn_c,		--									1015 field NOT in results so need to add to table
+--								/* in   */	prp_prd_vlu,			-- as [Period Number(PRP_PRD_VLU)]	1015 field
 --								/* b14  */	coppvu_desc_t,			-- As [Period Unit(COPPVU)]
---								/* in   */	mnm_prp_prd_vlu,		-- This 1015 field is in the results (as [Period Min] name)
---								/* in   */	max_prp_prd_vlu,		-- This 1015 field is in the results (as [Period Max] name)
+--								/* in   */	mnm_prp_prd_vlu,		-- as [Period Min] name				1015 field
+--								/* in   */	max_prp_prd_vlu,		-- as [Period Max] name				1015 field
 --								/* b8   */	prpptv_nm,				-- As [Period TextValue(PRPPTV)]
 --								/* b9   */	B9.coppr_desc_t,		-- AS [Applies To (COPPR)],
 --								/* b10  */	B10.coppr_desc_t ,		-- AS [Depends On (COPPR)],
@@ -226,24 +284,69 @@ declare
 --								/* in   */	a.p_prp_vlu_t_set_id	-- This 1015 field is in the results (as [Period TextSet] name)
 --			/* 41     */	)								as TextOption						-- 6 of 5/6
 
---		into Temp.mbwNew_PRPHOptions
---					-- mbw: On all the straight lookups, just do individual bulk inserts on the values
---		From		[MASTER].[prph_product_provision_history_1015]					A
---		Inner Join	[MASTER].[pr_product]											c	On a.pr_id				=	c.pr_id
---		-- mbw: there's no reason to join these here... not used in further joins
---		--		AND: even worse, these 2 tables together are cross-joined 
---		--			 (c2 was in the "and" that is commented out...)
---		--	SO...they are gonna create incorrect data in the Temp.PRPHOptions table!!!
---		Left Join	[MASTER].[copt_producttype]										e	On c.pr_typ_c			=	e.copt_c				And e.copt_stus_c					=	'A'
---		left join	[MASTER].[COPTC_PRODUCT_TYPE_CATEGORIZATION]					c2	on c2.COPTC_C			=	e.COPT_PR_AFL_TYP_C		and c2.COPTC_STUS_C					=	'A'
+			-- Extra fields from "A" that need to be saved to run the Master.GetProvisionTextOptions func later
+			/* 42     */ 	A.prp_vlu						as [prp_vlu_InOrigDecimal]
 
---		Inner Join	[MASTER].[prh_product_history]									D	On a.pr_id				=	d.pr_id					And d.pr_stus_c						=	'A'
---		inner join	[MASTER].[COPTT]												c3	on d.PR_TMPLT_TYP_C		=	c3.COPTT_C				and c3.COPTT_STUS_C					=	'A' 
---		-- This is the CTE above -pull that out
---		Left Join	svh_hierarchy													B	On A.sv_id				=	B.sv_id					    
---		-- All these can be a bulk update
---		Left Join	[MASTER].[bnt_benefit_tier]										B1	On A.bnt_id				=	B1.bnt_id				And B1.bnt_stus_c					=	'A'
---		Left Join	[MASTER].[copptc_product_provision_type]						B2	On A.prp_typ_c			=	B2.copptc_c				And Ltrim(Rtrim(B2.copptc_stus_c))	=	'A'
+			-- Extra int fields from "A" that are used in the left join replacements
+			/* 43     */ ,	A.bnt_id
+			/* 44     */ ,	A.PRP_TYP_C			
+			/* 45     */ ,	A.prp_typ_qlfr_c		
+			/* 46     */ ,	A.prp_lin_typ_c		
+			/* 47     */ ,	A.prp_stdz_lvl_c		
+			/* 48     */ ,	A.prp_vlu_clmn_c		
+			/* 49     */ ,	A.prp_vlu_typ_c		
+			/* 50     */ ,	A.p_prp_vlu_t_id		
+			/* 51     */ ,	A.apl_to_prp_rel_c	
+			/* 52     */ ,	A.deps_on_prp_rel_c	
+			/* 53     */ ,	A.prp_vlu_t_id		
+			/* 54     */ ,	A.prp_vlu_uom_c		
+			/* 55     */ ,	A.prp_prd_vlu_clmn_c	
+			/* 56     */ ,	A.prp_prd_vlu_uom_c	
+			
+
+
+					-- mbw: On all the straight lookups, just do individual bulk inserts on the values
+		From		[MASTER].[prph_product_provision_history_1015]					A
+		Inner Join	[MASTER].[pr_product]											c	On a.pr_id				=	c.pr_id
+		Inner Join	[MASTER].[prh_product_history]									D	On a.pr_id				=	d.pr_id					And d.pr_stus_c						=	'A'
+		inner join	[MASTER].[COPTT]												c3	on d.PR_TMPLT_TYP_C		=	c3.COPTT_C				and c3.COPTT_STUS_C					=	'A' 
+		/* If want to use @sv_id param add the where here... on A.SV_ID 
+
+			-- mbw: there's no reason to join these here... not used in further joins, unless there is a need to check for @PR_ID, @SERVICE_PROVISION or @PRODUCTtYPE which are not in play
+			--		AND: even worse, these 2 tables together are cross-joined 
+			--			 (c2 was in the "and" that is commented out...)
+			--	SO...they are gonna create incorrect data in the Temp.PRPHOptions table!!!
+			Left Join	[MASTER].[copt_producttype]										e	On c.pr_typ_c			=	e.copt_c				And e.copt_stus_c					=	'A'
+			left join	[MASTER].[COPTC_PRODUCT_TYPE_CATEGORIZATION]					c2	on c2.COPTC_C			=	e.COPT_PR_AFL_TYP_C		and c2.COPTC_STUS_C					=	'A'
+		*/
+SET @Step1Time = SYSDATETIME();
+
+		-- Now update with bulk updates what was originally in the crazy big distinct join with all 40+ fields and the crazy left-joins all over
+		-- Now update with bulk updates what was originally in the crazy big distinct join with all 40+ fields and the crazy left-joins all over
+
+	  --Left Join	svh_hierarchy													B	On A.sv_id				=	B.sv_id					    
+		-- svh_hierarchy was first, but we'll do that at the bottom
+
+	  --Left Join	[MASTER].[bnt_benefit_tier]										B1	On A.bnt_id				=	B1.bnt_id				And B1.bnt_stus_c					=	'A'
+	  --Left Join	[MASTER].[copptc_product_provision_type]						B2	On A.prp_typ_c			=	B2.copptc_c				And Ltrim(Rtrim(B2.copptc_stus_c))	=	'A'
+
+		update t  SET [Network Name]	= LTRIM(RTRIM(B.bnt_nm))			from Temp.mbwNew_PRPHOptions T inner join [MASTER].[bnt_benefit_tier]				B  ON T.bnt_id		= B.bnt_id;
+SET @Step2Time = SYSDATETIME();
+		update t  SET SERVICE_PROVISION = LTRIM(RTRIM(B2.copptc_desc_t))	from Temp.mbwNew_PRPHOptions T inner join [MASTER].[copptc_product_provision_type]	B2 ON T.prp_typ_c	= B2.copptc_c And Ltrim(Rtrim(B2.copptc_desc_t))	=	'A'
+SET @Step3Time = SYSDATETIME();
+
+
+
+work through the rest of them, updaing the table forthe value
+
+then create the TextOption (after seeing if there are more select 5 than select distint 5 input fields... to know whether to combine wit the dbo.StringConcat
+then see if the dbo.StringConcat is needed.
+then see if it is blowing things out with the 5 = 6 -> 7
+then make sure distinct is there
+
+
+--if 123=456 begin
+
 --		Left Join	[MASTER].[copptq_product_provision_type_qualifier]				B3	On A.prp_typ_qlfr_c		=	B3.copptq_c				And B3.copptq_stus_c				=	'A'
 --		Left Join	[MASTER].[coplt_product_provision_line_type]					B4	On A.prp_lin_typ_c		=	B4.coplt_c				And B4.coplt_stus_c					=	'A'
 --		Left Join	[MASTER].[cobsl_product_provision_standardization_level]		B5	On A.prp_stdz_lvl_c		=	B5.cobsl_c				And B5.cobsl_stus_c					=	'A'
@@ -279,6 +382,22 @@ declare
 --		--							end
 --		Order By				2, 3,39, 7,8,9, 12,5, 6,4	-- mbw: No need to have this if you have the table created with an index on this...  And WHY this order... not used...
 	
+
+
+
+	--	-- This is the CTE above -pull that out
+	--	Left Join	svh_hierarchy													B	On A.sv_id				=	B.sv_id					    
+		-- svh_hierarchy was first, but we'll do that at the bottom
+
+
+
+
+
+
+
+
+
+
 --		-- mbW: look further at what this is pulling from the above table...
 --		-- mbw: The distinct is not needed, and it's forcing SQL to do what it needn't do, unless the TextOptions varies across for a given first 5 fields... check that
 --		--		POINT: The only purpose here is to swap TextOption for the dboStringConcat() verion called options.  
@@ -375,9 +494,14 @@ declare
 --		/ * */
 --end
 
+
 		-- Reset the settings to default once the work is complete.
 		SET NOCOUNT OFF;	
 		SET XACT_ABORT OFF;
+
+-- Capture end time
+SET @EndTime = SYSDATETIME();
+
 
   END TRY
   BEGIN CATCH -- HAndle all the errors here in this catch block....
@@ -413,3 +537,24 @@ declare
 	 END CATCH
 		
 --End	
+
+
+
+-- Calculate durations in milliseconds
+DECLARE @Duration1 INT = DATEDIFF(MILLISECOND, @StartTime, @Step1Time);
+DECLARE @Duration2 INT = DATEDIFF(MILLISECOND, @Step1Time, @Step2Time);
+DECLARE @Duration3 INT = DATEDIFF(MILLISECOND, @Step2Time, @Step3Time);
+DECLARE @TotalDuration INT = DATEDIFF(MILLISECOND, @StartTime, @EndTime);
+
+-- Calculate percentages
+DECLARE @Pct1 DECIMAL(5,2) = (CAST(@Duration1 AS DECIMAL(10,2)) / @TotalDuration) * 100;
+DECLARE @Pct2 DECIMAL(5,2) = (CAST(@Duration2 AS DECIMAL(10,2)) / @TotalDuration) * 100;
+DECLARE @Pct3 DECIMAL(5,2) = (CAST(@Duration3 AS DECIMAL(10,2)) / @TotalDuration) * 100;
+
+-- Print summary
+DECLARE @MaxLen INT = 9; 
+PRINT '--- Execution Time Summary ---';
+PRINT 'Step 1 Duration: ' + RIGHT(REPLICATE(' ', @MaxLen) + FORMAT(@Duration1,     'N0'), @MaxLen) + ' ms (' + CAST(@Pct1 AS VARCHAR) + '%)';
+PRINT 'Step 2 Duration: ' + RIGHT(REPLICATE(' ', @MaxLen) + FORMAT(@Duration2,     'N0'), @MaxLen) + ' ms (' + CAST(@Pct2 AS VARCHAR) + '%)';
+PRINT 'Step 3 Duration: ' + RIGHT(REPLICATE(' ', @MaxLen) + FORMAT(@Duration3,     'N0'), @MaxLen) + ' ms (' + CAST(@Pct3 AS VARCHAR) + '%)';
+PRINT 'Total  Duration: ' + RIGHT(REPLICATE(' ', @MaxLen) + FORMAT(@TotalDuration, 'N0'), @MaxLen) + ' ms';
