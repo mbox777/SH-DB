@@ -315,6 +315,8 @@ insert into #mbwTime (StepName) VALUES ('insert into Temp.mbwNew_PRPHOptions');
 		Inner Join	[MASTER].[pr_product]											c	On a.pr_id				=	c.pr_id
 		Inner Join	[MASTER].[prh_product_history]									D	On a.pr_id				=	d.pr_id					And d.pr_stus_c						=	'A'
 		inner join	[MASTER].[COPTT]												c3	on d.PR_TMPLT_TYP_C		=	c3.COPTT_C				and c3.COPTT_STUS_C					=	'A' 
+
+		order by PRPH_REC_ID -- The PK on both tables
 		/* If want to use @sv_id param add the where here... on A.SV_ID 
 
 			-- mbw: there's no reason to join these here... not used in further joins, unless there is a need to check for @PR_ID, @SERVICE_PROVISION or @PRODUCTtYPE which are not in play
@@ -738,24 +740,102 @@ B14	20144	20.14	       20.14	1.03
 
 UAT
 																					Now joining to original table which has FKs to the lookup tables thorugh the PK on 1015 and my new one
+																						No indexes on mbwNew			Add indexes
+																						Through 1015	add order by	with order by
 
 											No index		With index					
-1	svh_heirarchy CTE							0.11	        0.10
-2	insert into Temp.mbwNew_PRPHOptions	      310.62	      997.35	much larger
-3	B1									      144.71	      173.66
-4	B2									        0.31	        0.57
-5	B3									       17.60	       25.92
-6	B4									        9.60	        9.12
-7	B5									      221.30	      202.90
-8	B3									      277.52	      194.98
-9	B6									       55.24	       49.69
-10	B8									        9.21	       17.92
-11	B9									       51.55	       21.88	quicker
-12	B10									       25.35	        1.57	much quicker
-13	B11									      159.21	      193.88
-14	B12									       53.01	       35.70	quicker
-15	B13									       35.36	       15.55	much quicker
-16	B14									       11.39	       20.14
+1	svh_heirarchy CTE							0.11	        0.10						     0.10	     0.10
+2	insert into Temp.mbwNew_PRPHOptions	      310.62	      997.35	much larger			   266.96	   258.36
+3	B1									      144.71	      173.66						   320.49	   254.16
+4	B2									        0.31	        0.57						     0.93	     0.67
+5	B3									       17.60	       25.92						    10.62	    11.79
+6	B4									        9.60	        9.12						     4.55	     4.90
+7	B5									      221.30	      202.90						   160.21	   156.50
+8	B3									      277.52	      194.98						   153.11	   157.55
+9	B6									       55.24	       49.69						    33.34	    29.70
+10	B8									        9.21	       17.92						     4.80	     5.80
+11	B9									       51.55	       21.88	quicker				    33.11	    33.06
+12	B10									       25.35	        1.57	much quicker		    26.07	    25.01
+13	B11									      159.21	      193.88						   101.78	   101.13
+14	B12									       53.01	       35.70	quicker				    22.67	    22.56
+15	B13									       35.36	       15.55	much quicker		    27.89	    27.85
+16	B14									       11.39	       20.14						     5.10	     5.05
+
+																								19:34	    18:16
+
+Through 1015
+
+StepName	DurationMs	DurationSec	DurationSec2	Pct
+svh_heirarchy CTE	101	0.10	        0.10	0.01
+insert into Temp.mbwNew_PRPHOptions	266959	266.96	      266.96	22.78
+B1	320494	320.49	      320.49	27.35
+B2	934	0.93	        0.93	0.08
+B3	10616	10.62	       10.62	0.91
+B4	4547	4.55	        4.55	0.39
+B5	160209	160.21	      160.21	13.67
+B3	153111	153.11	      153.11	13.07
+B6	33342	33.34	       33.34	2.85
+B8	4797	4.80	        4.80	0.41
+B9	33110	33.11	       33.11	2.83
+B10	26072	26.07	       26.07	2.23
+B11	101776	101.78	      101.78	8.69
+B12	22665	22.67	       22.67	1.93
+B13	27886	27.89	       27.89	2.38
+B14	5101	5.10	        5.10	0.44
+
+
+        0.10
+      266.96
+      320.49
+        0.93
+       10.62
+        4.55
+      160.21
+      153.11
+       33.34
+        4.80
+       33.11
+       26.07
+      101.78
+       22.67
+       27.89
+        5.10
+
+
+StepName	DurationMs	DurationSec	DurationSec2	Pct
+svh_heirarchy CTE	102	0.10	        0.10	0.01
+insert into Temp.mbwNew_PRPHOptions	258359	258.36	      258.36	23.61
+B1	254160	254.16	      254.16	23.23
+B2	674	0.67	        0.67	0.06
+B3	11785	11.79	       11.79	1.08
+B4	4895	4.90	        4.90	0.45
+B5	156500	156.50	      156.50	14.30
+B3	157551	157.55	      157.55	14.40
+B6	29703	29.70	       29.70	2.71
+B8	5804	5.80	        5.80	0.53
+B9	33057	33.06	       33.06	3.02
+B10	25008	25.01	       25.01	2.29
+B11	101131	101.13	      101.13	9.24
+B12	22560	22.56	       22.56	2.06
+B13	27853	27.85	       27.85	2.55
+B14	5049	5.05	        5.05	0.46
+
+        0.10
+      258.36
+      254.16
+        0.67
+       11.79
+        4.90
+      156.50
+      157.55
+       29.70
+        5.80
+       33.06
+       25.01
+      101.13
+       22.56
+       27.85
+        5.05
 
 
 */
