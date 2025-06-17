@@ -43,3 +43,67 @@ select * From Master.[sv_medical_service]          where sv_id in (2138821075, 2
 /*
 Nursery Care -> Maternity -> Inpatient Hospital Facility Services -> Inpatient Facility Services	2138821075 -> 2094436046 -> 2094436044 -> 2094436043
 */
+
+
+
+
+-- ========================================
+-- Script: Dynamic Step Timing Logger
+-- Description: Logs and reports execution time for arbitrary steps
+-- ========================================
+
+-- Create temp table to store step timings
+IF OBJECT_ID('tempdb..#StepTimings') IS NOT NULL DROP TABLE #StepTimings;fs
+CREATE TABLE #StepTimings (
+    StepNumber INT IDENTITY(1,1),
+    StepName NVARCHAR(100),
+    StepTime DATETIME2 DEFAULT SYSDATETIME()
+);
+
+-- Insert start time
+INSERT INTO #StepTimings (StepName) VALUES ('Step 1 - 1 second');
+WAITFOR DELAY '00:00:01'; -- Simulated delay
+
+INSERT INTO #StepTimings (StepName) VALUES ('Step 2 -- 11.5 second')
+WAITFOR DELAY '00:00:11.500'; -- Simulated delay
+
+INSERT INTO #StepTimings (StepName) VALUES ('Step 3 -- 2 second')
+WAITFOR DELAY '00:00:01.500'; -- Simulated delay
+
+INSERT INTO #StepTimings (StepName) VALUES ('Step 4 -- .5 second')
+WAITFOR DELAY '00:00:00.500'; -- Simulated delay
+
+-- Insert end time
+INSERT INTO #StepTimings (StepName) VALUES ('End')
+
+-- Calculate durations and percentages
+;WITH Durations AS (
+    SELECT 
+        s1.StepNumber,
+        s1.StepName,
+        DurationMs = DATEDIFF(MILLISECOND, s1.StepTime, s2.StepTime)
+    FROM #StepTimings s1
+    JOIN #StepTimings s2 ON s2.StepNumber = s1.StepNumber + 1
+),
+Total AS (
+    SELECT SUM(DurationMs) AS TotalDuration FROM Durations
+)
+SELECT 
+    d.StepName,
+    d.DurationMs,
+	DurationSec = FORMAT(d.DurationMs / 1000.0, 'N2'), -- Converts ms to seconds with commas and 2 decimal places
+	DurationSec2 = RIGHT(REPLICATE(' ', 12) + FORMAT(d.DurationMs / 1000.0, 'N2'), 12),
+    Pct = CAST(d.DurationMs * 100.0 / t.TotalDuration AS DECIMAL(5,2))
+FROM Durations d
+CROSS JOIN Total t
+ORDER BY d.StepNumber;
+
+-- Clean up
+DROP TABLE #StepTimings;
+
+
+StepName				DurationMs	DurationSec	DurationSec2	Pct
+Step 1 - 1 second		1001		1.00	        1.00	6.90
+Step 2 - 11.5 second	11501		11.50	       11.50	79.30
+Step 3 - 2 second		1501		1.50	        1.50	10.35
+Step 4 - .5 second		501			0.50	        0.50	3.45

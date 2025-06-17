@@ -6,7 +6,7 @@
 
 -- Declare variables to store timestamps
 DECLARE @StartTime DATETIME2 = SYSDATETIME();
-DECLARE @Step1Time DATETIME2;
+DECLARE @Step1Time DATETIME2;fs
 DECLARE @Step2Time DATETIME2;
 DECLARE @Step3Time DATETIME2;
 DECLARE @EndTime   DATETIME2;
@@ -234,6 +234,7 @@ declare
 		  On					A.prp_prd_vlu_uom_c				=	B14.coppvu_c
 		  And					B14.coppvu_stus_c				=	'A'
 		  Where					A.prp_stus_c					=	'A'
+		  Order By				2, 3,39, 7,8,9, 12,5, 6,4  
 	 --     And					A.pr_id = 
 		--						Case
 		--						When @PR_ID IS NOT NULL Then @PR_ID
@@ -251,7 +252,6 @@ declare
 		--						 case when @ProductType is not null then
 		--						        @ProductType else c2.COPTC_DESC_T
 		--							end
-		  Order By				2, 3,39, 7,8,9, 12,5, 6,4  
 	
 -- Step 1: First query with CTEs
 SET @Step1Time = SYSDATETIME();
@@ -390,6 +390,17 @@ take 2
 
 
 
+UAT 2025-06-16
+
+	28:26
+
+	--- Execution Time Summary ---
+	Step 1 Duration: 1,359,077 ms (79.64%)
+	Step 2 Duration:   103,265 ms (6.05%)
+	Step 3 Duration:   244,111 ms (14.31%)
+	Total  Duration: 1,706,453 ms
+
+	Completion time: 2025-06-16T12:41:00.1283006-04:00
 
 
 

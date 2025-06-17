@@ -74,6 +74,16 @@ if 1=2 begin
 	select count(1) from RPTeBS_enGen_UAT.Temp.FullProvisionOption			-- 6773
 	select count(1) from RPTeBS_enGen_UAT.Temp.FinalProvisionOptions		-- 0
 
+	select count(1) from RPTeBS_enGen_UAT.Temp.mbw_PRPHOptions					-- 16,832	19,261,548
+	select count(1) from RPTeBS_enGen_UAT.Temp.mbw_FullProvisionOption			--  6,773	12,830,778
+	select count(1) from RPTeBS_enGen_UAT.Temp.mbw_FinalProvisionOptions		--      0	19,259,784
+
+	select count(1) from RPTeBS_enGen_UAT.Temp.mbwNew_PRPHOptions					-- 16,832	19,944,141 b/c need to do last distinct
+	select count(1) from RPTeBS_enGen_UAT.Temp.mbwNew_FullProvisionOption			--  6,773	12,830,778
+	select count(1) from RPTeBS_enGen_UAT.Temp.mbwNew_FinalProvisionOptions		--      0	19,259,784
+	
+
+
 	-- wgsuser
 	-- wgsuser																wgsuser
 	select count(1) from RPTeBS_enGen_UAT.Temp.PRPHOptions					-- Can't access RPTeBS_enGen_UAT

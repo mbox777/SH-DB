@@ -12,12 +12,12 @@ GO
 -- Create temp table to store step timings
 IF OBJECT_ID('tempdb..#mbwTime') IS NOT NULL DROP TABLE #mbwTime;
 CREATE TABLE #mbwTime (
-    StepNumber INT IDENTITY(1,1),
-    StepName NVARCHAR(100),
-    StepTime DATETIME2 DEFAULT SYSDATETIME()
+    StepNumber		INT IDENTITY(1,1),
+    StepName		NVARCHAR(100),
+    StepStartTime	DATETIME2 DEFAULT SYSDATETIME(),
+	StepDurationMs	int,
+	TotalTimeMs		int
 );
-
-
 
 /**************************************************************************************************
 Name
@@ -618,42 +618,30 @@ insert into #mbwTime (StepName) VALUES ('End');
 
 
 
--- Calculate durations and percentages
-;WITH Durations AS (
-    SELECT 
-        s1.StepNumber,
-        s1.StepName,
-        DurationMs = DATEDIFF(MILLISECOND, s1.StepTime, s2.StepTime)
-    FROM #mbwTime s1
-    JOIN #mbwTime s2 ON s2.StepNumber = s1.StepNumber + 1
-),
-Total AS (
-    SELECT SUM(DurationMs) AS TotalDuration FROM Durations
-)
+-- Compute final columns
+UPDATE t SET StepDurationMs = DATEDIFF(MILLISECOND, t.StepStartTime, t2.StepStartTime) FROM #mbwTime t       JOIN #mbwTime t2 ON t.StepNumber = t2.StepNumber - 1;
+UPDATE t SET TotalTimeMs    = DATEDIFF(MILLISECOND, s.StartTime,      t.StepStartTime) FROM #mbwTime t CROSS JOIN (SELECT MIN(StepStartTime) AS StartTime FROM #mbwTime) s;
+
+-- Now shift TotalTimeMs down by 1 row to reflect the end of the step
+UPDATE t SET TotalTimeMs = t2.TotalTimeMs FROM #mbwTime t JOIN #mbwTime t2 ON t.StepNumber = t2.StepNumber - 1;
+
+WITH Total AS ( SELECT MAX(TotalTimeMs) AS TotalDuration FROM #mbwTime )
 SELECT 
-    d.StepName,
-    d.DurationMs,
-	DurationSec = FORMAT(d.DurationMs / 1000.0, 'N2'), -- Converts ms to seconds with commas and 2 decimal places
-	DurationSec2 = RIGHT(REPLICATE(' ', 12) + FORMAT(d.DurationMs / 1000.0, 'N2'), 12),
-    Pct = CAST(d.DurationMs * 100.0 / t.TotalDuration AS DECIMAL(5,2))
-FROM Durations d
+    StepNumber,
+    StepName,
+    StepDurationMs,
+    DurationSec = FORMAT(StepDurationMs / 1000.0, 'N2'),
+    TotalTimeSec = FORMAT(TotalTimeMs / 1000.0, 'N2'),
+    StepPct = FORMAT(StepDurationMs * 100.0 / t.TotalDuration, 'N2'),
+    CumulativePct = FORMAT(TotalTimeMs * 100.0 / t.TotalDuration, 'N2')
+FROM #mbwTime
 CROSS JOIN Total t
-ORDER BY d.StepNumber;
+ORDER BY StepNumber;
 
-
---			
---			-- Total duration row
---			SELECT 
---			    StepName = 'Total',
---			    DurationSec = RIGHT(REPLICATE(' ', 12) + FORMAT(t.TotalDuration / 1000.0, 'N2'), 12),
---			    Pct = 100.00
---			FROM Total t;
---			
---			
 --			-- Clean up
 --			DROP TABLE #mbwTime;
 --			
-
+fs
 /*
 with all indexes over 30??
 
@@ -739,29 +727,56 @@ B13	15554	15.55	       15.55	0.79
 B14	20144	20.14	       20.14	1.03
 
 UAT
-																					Now joining to original table which has FKs to the lookup tables thorugh the PK on 1015 and my new one
-																						No indexes on mbwNew			Add indexes
-																						Through 1015	add order by	with order by
+																					add here with not joining through 1015 with order by and no idexes		Now joining to original table which has FKs to the lookup tables thorugh the PK on 1015 and my new one
+																					add here with not joining through 1015 with order by and no idexes			No indexes on mbwNew			Add indexes
+																					add here with not joining through 1015 with order by and no idexes			Through 1015	add order by	with order by
+																					add here with not joining through 1015 with order by and no idexes		
+											No index		With index				add here with not joining through 1015 with order by and no idexes			
+1	svh_heirarchy CTE							0.11	        0.10				add here with not joining through 1015 with order by and no idexes				     0.10	     0.10        0.10
+2	insert into Temp.mbwNew_PRPHOptions	      310.62	      997.35	much larger	add here with not joining through 1015 with order by and no idexes				   266.96	   258.36      982.13
+3	B1									      144.71	      173.66				add here with not joining through 1015 with order by and no idexes				   320.49	   254.16      379.91
+4	B2									        0.31	        0.57				add here with not joining through 1015 with order by and no idexes				     0.93	     0.67        0.49
+5	B3									       17.60	       25.92				add here with not joining through 1015 with order by and no idexes				    10.62	    11.79       12.54
+6	B4									        9.60	        9.12				add here with not joining through 1015 with order by and no idexes				     4.55	     4.90        5.46
+7	B5									      221.30	      202.90				add here with not joining through 1015 with order by and no idexes				   160.21	   156.50      393.20
+8	B3									      277.52	      194.98				add here with not joining through 1015 with order by and no idexes				   153.11	   157.55      151.47
+9	B6									       55.24	       49.69				add here with not joining through 1015 with order by and no idexes				    33.34	    29.70       31.95
+10	B8									        9.21	       17.92				add here with not joining through 1015 with order by and no idexes				     4.80	     5.80        5.45
+11	B9									       51.55	       21.88	quicker		add here with not joining through 1015 with order by and no idexes				    33.11	    33.06       29.74
+12	B10									       25.35	        1.57	much quickeradd here with not joining through 1015 with order by and no idexes				    26.07	    25.01       25.03
+13	B11									      159.21	      193.88				add here with not joining through 1015 with order by and no idexes				   101.78	   101.13       99.93
+14	B12									       53.01	       35.70	quicker		add here with not joining through 1015 with order by and no idexes				    22.67	    22.56       23.29
+15	B13									       35.36	       15.55	much quickeradd here with not joining through 1015 with order by and no idexes				    27.89	    27.85       22.41
+16	B14									       11.39	       20.14				add here with not joining through 1015 with order by and no idexes				     5.10	     5.05        5.50
+																					add here with not joining through 1015 with order by and no idexes		
+											   23:03           32:41																									19:34	    18:16		36:11
 
-											No index		With index					
-1	svh_heirarchy CTE							0.11	        0.10						     0.10	     0.10
-2	insert into Temp.mbwNew_PRPHOptions	      310.62	      997.35	much larger			   266.96	   258.36
-3	B1									      144.71	      173.66						   320.49	   254.16
-4	B2									        0.31	        0.57						     0.93	     0.67
-5	B3									       17.60	       25.92						    10.62	    11.79
-6	B4									        9.60	        9.12						     4.55	     4.90
-7	B5									      221.30	      202.90						   160.21	   156.50
-8	B3									      277.52	      194.98						   153.11	   157.55
-9	B6									       55.24	       49.69						    33.34	    29.70
-10	B8									        9.21	       17.92						     4.80	     5.80
-11	B9									       51.55	       21.88	quicker				    33.11	    33.06
-12	B10									       25.35	        1.57	much quicker		    26.07	    25.01
-13	B11									      159.21	      193.88						   101.78	   101.13
-14	B12									       53.01	       35.70	quicker				    22.67	    22.56
-15	B13									       35.36	       15.55	much quicker		    27.89	    27.85
-16	B14									       11.39	       20.14						     5.10	     5.05
+												
+						working			next need to try bulk inserts of 50k not all at once		BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...		also no index, NOT thrugh 1015 but with order by
+						working			next need to try bulk inserts of 50k not all at once 		BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...
+						working			next need to try bulk inserts of 50k not all at once 		BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...
+						working			next need to try bulk inserts of 50k not all at once 		BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...
+						working			next need to try bulk inserts of 50k not all at once 		BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...
 
-																								19:34	    18:16
+
+        0.10
+      982.13
+      379.91fs
+        0.49
+       12.54
+        5.46
+      393.20
+      151.47
+       31.95
+        5.45
+       29.74
+       25.03
+       99.93
+       23.29
+       22.41
+        5.50
+
+
 
 Through 1015
 
