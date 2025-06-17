@@ -107,4 +107,6 @@ if 1=2 begin
 	select count(1) from RPTeBS_enGen_SHC_DEV.Temp.mbw_FullProvisionOption		-- 156106
 	select count(1) from RPTeBS_enGen_SHC_DEV.Temp.mbw_FinalProvisionOptions	-- 214984
 
+
+	select count(1) from RPTeBS_enGen_UAT.Temp.mbwNew_PRPHOptions	with(nolock)
 end

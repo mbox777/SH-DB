@@ -1,4 +1,4 @@
---USE [RPTeBS_enGen_UAT]
+USE [RPTeBS_enGen_UAT]
 --GO
 --USE [RPTeBS_enGen_SHC_DEV]
 --GO
@@ -63,7 +63,7 @@ set nocount off
 		if 1=2 begin
 			-- mbw: Why is this drop and recreate without any indexes or table structure?  Just truncate the tables that exist with indexes, types
 			-- Clear all the temp tables that we need will dump things into  
-			if object_id('Temp.mbw_PRPHOptions')				is not null begin drop table Temp.mbw_PRPHOptions			end
+			if object_id('Temp.mbw_PRPHOptions')				is not null begin drop table Temp.mbw_PRPHOptions			end		-- Select * From Temp.mbwNew_PRPHOptions
 			if object_id('Temp.mbw_FullProvisionOption')		is not null begin drop table Temp.mbw_FullProvisionOption	end
 			if object_id('Temp.mbw_FinalProvisionOptions')		is not null begin drop table Temp.mbw_FinalProvisionOptions	end
 		end else begin
@@ -166,228 +166,301 @@ select 'new, to move below and use later',count(1) as 'count' from svh_hierarchy
 		--			select DISTINCT pr_id, APL_TO_PRP_ID, service_provision, prp_eff_frm_dt, prp_eff_to_dt,   plus the dbo.StringConcat on TextOption generated here
 		--		 ... so find out if there are multiple TextOption for a given combo of thoes 
 
-insert into #mbwTime (StepName) VALUES ('insert into Temp.mbwNew_PRPHOptions');
-		-- Just see how many records there are from the inner joins
-		insert into Temp.mbwNew_PRPHOptions
-		-- Specify the "A" and "c" table entries
-		(			
-			/*  0    */		/*A */PRPH_REC_ID,
-			/*  1	  */	/*A.*/pr_id,															-- 1 of 5/6		A
-			/*  2	1 */	/*c3 .COPTT_DESC_T					as */TemplateType,
-			/*  4  10 */	/*A.*/apl_to_prp_ord_n,
-			/*  5	8 */	/*A.*/apl_to_prp_id,													-- 2 of 5/6		A
-			/*  6	9 */	/*A.*/prp_id,
-			/* 10	  */	/*A.*/sv_id,
-			/* 11	  */	/*A.*/prp_stus_c,
-			/* 12	7 */	/*A  .prp_eff_frm_dt				As */prp_eff_frm_dt,				-- 4 of 5/6		A
-			/* 13	  */	/*A  .prp_eff_to_dt					As */prp_eff_to_dt,					-- 5 of 5/6		A
-			/* 18	  */	/*convert(varchar(50),A.prp_vlu)	AS */prp_vlu,
-			/* 19	  */	/*A.*/mnm_prp_vlu,
-			/* 20	  */	/*A.*/max_prp_vlu,
-			/* 21	  */	/*A.*/prp_prd_vincrm_vlu,
-			/* 23	  */	/*A.*/prp_vlu_t_set_id,
-			/* 30	  */	/*A  .prp_prd_vlu					As */[Period Number(PRP_PRD_VLU)],
-			/* 32	  */	/*A  .p_prp_vlu_t_set_id			As */[Period TextSet],
-			/* 33	  */	/*A  .mnm_prp_prd_vlu				As */[Period Min],
-			/* 34	  */	/*A  .max_prp_prd_vlu				As */[Period Max],
-			/* 35	  */	/*A  .PRP_VLU_INCRM_VLU				AS */[Period Increment Value],
-			/* 36	  */	/*A.*/deps_on_prp_id,
-			/* 37	  */	/*A.*/deps_on_prp_ord_n,
-			/* 38	  */	/*A.*/prp_inter_dep_prp_id,
-			/* 39	3 */	/*A.*/prp_lim_for_prp_id,
-			/* 40	  */	/*A.*/prph_prsn_ord_n
-			-- Extra fields from "A" that need to be saved to run the Master.GetProvisionTextOptions func later
-			/* 42     */ ,	/*A.prp_vlu							as */[prp_vlu_InOrigDecimal]
-			-- Extra int fields from "A" that are used in the left join replacements
-			/* 43     */ ,	/*A.*/bnt_id
-			/* 44     */ ,	/*A.*/PRP_TYP_C			
-			/* 45     */ ,	/*A.*/prp_typ_qlfr_c		
-			/* 46     */ ,	/*A.*/prp_lin_typ_c		
-			/* 47     */ ,	/*A.*/prp_stdz_lvl_c		
-			/* 48     */ ,	/*A.*/prp_vlu_clmn_c		
-			/* 49     */ ,	/*A.*/prp_vlu_typ_c		
-			/* 50     */ ,	/*A.*/p_prp_vlu_t_id		
-			/* 51     */ ,	/*A.*/apl_to_prp_rel_c	
-			/* 52     */ ,	/*A.*/deps_on_prp_rel_c	
-			/* 53     */ ,	/*A.*/prp_vlu_t_id		
-			/* 54     */ ,	/*A.*/prp_vlu_uom_c		
-			/* 55     */ ,	/*A.*/prp_prd_vlu_clmn_c	
-			/* 56     */ ,	/*A.*/prp_prd_vlu_uom_c	
 
+		declare @first			bigint
+			,	@last			bigint
+			,	@numRows		bigint
+			,	@BATCH_COUNT	bigint = 100000
+			,	@m				varchar(100)
+
+		select @first = min(PRPH_REC_ID), @last = max(PRPH_REC_ID), @numRows = count(1) from RPTeBS_enGen_UAT.[MASTER].[prph_product_provision_history_1015]
+		select @m = 'insert into Temp.mbwNew_PRPHOptions' + convert(varchar(20),@numRows) +' total rows, ['+convert(varchar(20),@first) + '..' + convert(varchar(20),@last) + '] by ' + convert(varchar(20),@BATCH_COUNT)
+insert into #mbwTime (StepName) VALUES (@m);
+print @m
+
+
+
+
+		-- Step 1: Create the temp table with IDENTITY and data
+		if object_id('tempdb..idList')				is not null begin drop table #idList end			-- Select * From #idList			
+		create table #idlist (
+			rownum			int identity(1,1) --primary key clustered
+		,	[PRPH_REC_ID]	bigint 
 		)
-		Select Distinct		-- mbw: crazy computionally to do the sort this way  ?? Are there sort orders on any of the lookup tables?  Could select the fields in sorted order from lookups and index this table by those ints for sort field 1,2
-			/* fld srt*/
-			/*  0    */		A  .PRPH_REC_ID, -- PK Clustered
-			/*  1	  */	A  .pr_id,															-- 1 of 5/6		A
-			/*  2	1 */	c3 .COPTT_DESC_T				as TemplateType,
---			/*  3	2 */	c2 .COPTC_DESC_T				as ProductType,
---								-- << Here is where "options" as a filtered version of TextOption will go
-			/*  4  10 */	A  .apl_to_prp_ord_n,
-			/*  5	8 */	A  .apl_to_prp_id,													-- 2 of 5/6		A
-			/*  6	9 */	A  .prp_id,
---			/*  7	4 */	Ltrim(Rtrim(B.LevelWithName))	AS [Service Name],
---			/*  8	5 */	Ltrim(Rtrim(B1.bnt_nm))			as [Network Name],									
---			/*  9	6 */	Ltrim(Rtrim(B2.copptc_desc_t))	As SERVICE_PROVISION,				-- 3 of 5/6		B2	(is left joined)
-			/* 10	  */	A  .sv_id,
-			/* 11	  */	A  .prp_stus_c,
-			/* 12	7 */	A  .prp_eff_frm_dt				As prp_eff_frm_dt,					-- 4 of 5/6		A
-			/* 13	  */	A  .prp_eff_to_dt				As prp_eff_to_dt,					-- 5 of 5/6		A
---			/* 14	  */	B3 .copptq_desc_t				As Qualifier,
---			/* 15	  */	B4 .coplt_desc_t				As LineType,
---			/* 16	  */	B7 .copvt_desc_t				As [Value Relativity(COPVT)],
---			/* 17	  */	B12.copvu_desc_t				As [Value Unit(COPVU)],
-			/* 18	  */	convert(varchar(50),A.prp_vlu)	AS prp_vlu,
-			/* 19	  */	A  .mnm_prp_vlu,
-			/* 20	  */	A  .max_prp_vlu,
-			/* 21	  */	A  .prp_prd_vincrm_vlu,
---			/* 22	  */	B11.prptv_nm					As [TextValue (PRPTV)],
-			/* 23	  */	A  .prp_vlu_t_set_id,
---			/* 24	  */	B9 .coppr_desc_t				AS [Applies To (COPPR)],
---			/* 25	  */	B10.coppr_desc_t				AS [Depends On (COPPR)],
---			/* 26	  */	B5 .cobsl_desc_t				As [Standardization level (COBSL)],
---			/* 27	  */	B6 .copvc_desc_t				As [Value Type(COPVC)] ,
---			/* 28	  */	B13.coppvc_desc_t				As [Period Type(COPPVC)],
---			/* 29	  */	B14.coppvu_desc_t				As [Period Unit(COPPVU)],
-			/* 30	  */	A  .prp_prd_vlu					As [Period Number(PRP_PRD_VLU)],
---			/* 31	  */	B8 .prpptv_nm					As [Period TextValue(PRPPTV)],
-			/* 32	  */	A  .p_prp_vlu_t_set_id			As [Period TextSet],
-			/* 33	  */	A  .mnm_prp_prd_vlu				As [Period Min],
-			/* 34	  */	A  .max_prp_prd_vlu				As [Period Max],
-			/* 35	  */	A  .PRP_VLU_INCRM_VLU			AS [Period Increment Value],
-			/* 36	  */	A  .deps_on_prp_id,
-			/* 37	  */	A  .deps_on_prp_ord_n,
-			/* 38	  */	A  .prp_inter_dep_prp_id,
-			/* 39	3 */	A  .prp_lim_for_prp_id,
-			/* 40	  */	A  .prph_prsn_ord_n,
---							-- mbw: Take the calculation out of the distinct.  This func should be deterministic on the inputs, and shouldn't need to be synced
---							--		TODO: Figure whether pulling it out can work, since not all fields are in the table, and the TextOption fields is in the distinct 41 field...
---							--		TODO: Decide whether to do this here or if it's pulled out here, or to do this below in a 7 field new table fixing the 6 field CTE
---							--				dbo.StringConcat(ISNULL(TextOption,''),'','','','','','','','','','','','','','','','','','','','','','','','',APL_TO_PRP_ORD_N)  as options
---							Master.GetProvisionTextOptions	(	
---								/* Tbl it is from, or 1015 if not in this resultset */
---								/* b4   */	coplt_desc_t,			-- As LineType
---								/* b2   */	copptc_desc_t,			-- As SERVICE_PROVISION		
---								/* b3   */	copptq_desc_t,			-- As Qualifier
---								/* 1015 */	prp_vlu_clmn_c,			--									1015 field NOT in results so need to add to table
---								/* in   */	prp_vlu,				--									1015 field     in the results, but func needs float not char
---								/* b12  */	copvu_desc_t,			-- As [Value Unit(COPVU)]
---								/* in   */	mnm_prp_vlu,			--									1015 field
---								/* in   */	max_prp_vlu,			-fs-									1015 field
---								/* b11  */	prptv_nm,				-- As [TextValue (PRPTV)]
---								/* in   */	prp_vlu_incrm_vlu,		-- as [Period Increment Value]		1015 field 
---								/* 1015 */	prp_prd_vlu_clmn_c,		--									1015 field NOT in results so need to add to table
---								/* in   */	prp_prd_vlu,			-- as [Period Number(PRP_PRD_VLU)]	1015 field
---								/* b14  */	coppvu_desc_t,			-- As [Period Unit(COPPVU)]
---								/* in   */	mnm_prp_prd_vlu,		-- as [Period Min] name				1015 field
---								/* in   */	max_prp_prd_vlu,		-- as [Period Max] name				1015 field
---								/* b8   */	prpptv_nm,				-- As [Period TextValue(PRPPTV)]
---								/* b9   */	B9.coppr_desc_t,		-- AS [Applies To (COPPR)],
---								/* b10  */	B10.coppr_desc_t ,		-- AS [Depends On (COPPR)],
---								/* in   */	prp_prd_vincrm_vlu,
---								/*      */	1,
---								/*      */	1,
---								/* in   */	a.p_prp_vlu_t_set_id	-- This 1015 field is in the results (as [Period TextSet] name)
---			/* 41     */	)								as TextOption						-- 6 of 5/6
 
-			-- Extra fields from "A" that need to be saved to run the Master.GetProvisionTextOptions func later
-			/* 42     */ 	A.prp_vlu						as [prp_vlu_InOrigDecimal]
+		insert into #idlist select PRPH_REC_ID from RPTeBS_enGen_UAT.[MASTER].[prph_product_provision_history_1015] ORDER BY PRPH_REC_ID;
 
-			-- Extra int fields from "A" that are used in the left join replacements
-			/* 43     */ ,	A.bnt_id
-			/* 44     */ ,	A.PRP_TYP_C			
-			/* 45     */ ,	A.prp_typ_qlfr_c		
-			/* 46     */ ,	A.prp_lin_typ_c		
-			/* 47     */ ,	A.prp_stdz_lvl_c		
-			/* 48     */ ,	A.prp_vlu_clmn_c		
-			/* 49     */ ,	A.prp_vlu_typ_c		
-			/* 50     */ ,	A.p_prp_vlu_t_id		
-			/* 51     */ ,	A.apl_to_prp_rel_c	
-			/* 52     */ ,	A.deps_on_prp_rel_c	
-			/* 53     */ ,	A.prp_vlu_t_id		
-			/* 54     */ ,	A.prp_vlu_uom_c		
-			/* 55     */ ,	A.prp_prd_vlu_clmn_c	
-			/* 56     */ ,	A.prp_prd_vlu_uom_c	
+		-- Step 2: Add a clustered index on the rn column
+		CREATE CLUSTERED INDEX IX_KeyBatches_rn ON #idList(rownum);
+		--(19956734 rows affected)
+		--Completion time: 2025-06-17T15:29:11.9448756-04:00
+
+
+		-- Step 2: Select every 50,000th row starting from the first
+		declare @num		bigint = 0
+		declare @BATCH_SIZE	bigint = 50000
+		declare @lastID		bigint
+		declare @s			varchar(100)
+
+		declare @keepGoing	int = 1
+
+		-- This is the range to use
+		declare @row_a bigint = 0
+		declare @row_b bigint = 0
+
+		while @keepGoing > 0 begin
+			select @num = @num + @BATCH_SIZE
+			select @lastID = PRPH_REC_ID from #idList where rownum = @num
+			if (@@ROWCOUNT = 0) begin 
+				select top 1 @num = rownum, @lastID = PRPH_REC_ID from #idList  order by rownum desc
+				set @keepGoing = 0
+			end
+			select @s = RIGHT('              ' + FORMAT(@num, '#,##0'),11) + ' = '  +  RIGHT('              ' + FORMAT(@row_a, '#,##0'), 14)
+																		   + ' .. ' +  RIGHT('              ' + FORMAT(@row_b, '#,##0'), 14)
+			print @s
+
+			set @row_a = @row_b + 1
+			set @row_b = @lastID
+
+insert into #mbwTime (StepName) values (@s)
+
+---- Early terminate to check 		
+--if (@row_a >  5001472357) begin
+--	set @keepGoing = 0
+--end
+
+			-- Just see how many records there are from the inner joins
+			insert into Temp.mbwNew_PRPHOptions
+			-- Specify the "A" and "c" table entries
+			(			
+				/*  0    */		/*A */PRPH_REC_ID,
+				/*  1	  */	/*A.*/pr_id,															-- 1 of 5/6		A
+				/*  2	1 */	/*c3 .COPTT_DESC_T					as */TemplateType,
+				/*  4  10 */	/*A.*/apl_to_prp_ord_n,
+				/*  5	8 */	/*A.*/apl_to_prp_id,													-- 2 of 5/6		A
+				/*  6	9 */	/*A.*/prp_id,
+				/* 10	  */	/*A.*/sv_id,
+				/* 11	  */	/*A.*/prp_stus_c,
+				/* 12	7 */	/*A  .prp_eff_frm_dt				As */prp_eff_frm_dt,				-- 4 of 5/6		A
+				/* 13	  */	/*A  .prp_eff_to_dt					As */prp_eff_to_dt,					-- 5 of 5/6		A
+				/* 18	  */	/*convert(varchar(50),A.prp_vlu)	AS */prp_vlu,
+				/* 19	  */	/*A.*/mnm_prp_vlu,
+				/* 20	  */	/*A.*/max_prp_vlu,
+				/* 21	  */	/*A.*/prp_prd_vincrm_vlu,
+				/* 23	  */	/*A.*/prp_vlu_t_set_id,
+				/* 30	  */	/*A  .prp_prd_vlu					As */[Period Number(PRP_PRD_VLU)],
+				/* 32	  */	/*A  .p_prp_vlu_t_set_id			As */[Period TextSet],
+				/* 33	  */	/*A  .mnm_prp_prd_vlu				As */[Period Min],
+				/* 34	  */	/*A  .max_prp_prd_vlu				As */[Period Max],
+				/* 35	  */	/*A  .PRP_VLU_INCRM_VLU				AS */[Period Increment Value],
+				/* 36	  */	/*A.*/deps_on_prp_id,
+				/* 37	  */	/*A.*/deps_on_prp_ord_n,
+				/* 38	  */	/*A.*/prp_inter_dep_prp_id,
+				/* 39	3 */	/*A.*/prp_lim_for_prp_id,
+				/* 40	  */	/*A.*/prph_prsn_ord_n
+				-- Extra fields from "A" that need to be saved to run the Master.GetProvisionTextOptions func later
+				/* 42     */ ,	/*A.prp_vlu							as */[prp_vlu_InOrigDecimal]
+				-- Extra int fields from "A" that are used in the left join replacements
+				/* 43     */ ,	/*A.*/bnt_id
+				/* 44     */ ,	/*A.*/PRP_TYP_C			
+				/* 45     */ ,	/*A.*/prp_typ_qlfr_c		
+				/* 46     */ ,	/*A.*/prp_lin_typ_c		
+				/* 47     */ ,	/*A.*/prp_stdz_lvl_c		
+				/* 48     */ ,	/*A.*/prp_vlu_clmn_c		
+				/* 49     */ ,	/*A.*/prp_vlu_typ_c		
+				/* 50     */ ,	/*A.*/p_prp_vlu_t_id		
+				/* 51     */ ,	/*A.*/apl_to_prp_rel_c	
+				/* 52     */ ,	/*A.*/deps_on_prp_rel_c	
+				/* 53     */ ,	/*A.*/prp_vlu_t_id		
+				/* 54     */ ,	/*A.*/prp_vlu_uom_c		
+				/* 55     */ ,	/*A.*/prp_prd_vlu_clmn_c	
+				/* 56     */ ,	/*A.*/prp_prd_vlu_uom_c	
+
+			)
+			Select Distinct		-- mbw: crazy computionally to do the sort this way  ?? Are there sort orders on any of the lookup tables?  Could select the fields in sorted order from lookups and index this table by those ints for sort field 1,2
+				/* fld srt*/
+				/*  0    */		A  .PRPH_REC_ID, -- PK Clustered
+				/*  1	  */	A  .pr_id,															-- 1 of 5/6		A
+				/*  2	1 */	c3 .COPTT_DESC_T				as TemplateType,
+	--			/*  3	2 */	c2 .COPTC_DESC_T				as ProductType,
+	--								-- << Here is where "options" as a filtered version of TextOption will go
+				/*  4  10 */	A  .apl_to_prp_ord_n,
+				/*  5	8 */	A  .apl_to_prp_id,													-- 2 of 5/6		A
+				/*  6	9 */	A  .prp_id,
+	--			/*  7	4 */	Ltrim(Rtrim(B.LevelWithName))	AS [Service Name],
+	--			/*  8	5 */	Ltrim(Rtrim(B1.bnt_nm))			as [Network Name],									
+	--			/*  9	6 */	Ltrim(Rtrim(B2.copptc_desc_t))	As SERVICE_PROVISION,				-- 3 of 5/6		B2	(is left joined)
+				/* 10	  */	A  .sv_id,
+				/* 11	  */	A  .prp_stus_c,
+				/* 12	7 */	A  .prp_eff_frm_dt				As prp_eff_frm_dt,					-- 4 of 5/6		A
+				/* 13	  */	A  .prp_eff_to_dt				As prp_eff_to_dt,					-- 5 of 5/6		A
+	--			/* 14	  */	B3 .copptq_desc_t				As Qualifier,
+	--			/* 15	  */	B4 .coplt_desc_t				As LineType,
+	--			/* 16	  */	B7 .copvt_desc_t				As [Value Relativity(COPVT)],
+	--			/* 17	  */	B12.copvu_desc_t				As [Value Unit(COPVU)],
+				/* 18	  */	convert(varchar(50),A.prp_vlu)	AS prp_vlu,
+				/* 19	  */	A  .mnm_prp_vlu,
+				/* 20	  */	A  .max_prp_vlu,
+				/* 21	  */	A  .prp_prd_vincrm_vlu,
+	--			/* 22	  */	B11.prptv_nm					As [TextValue (PRPTV)],
+				/* 23	  */	A  .prp_vlu_t_set_id,
+	--			/* 24	  */	B9 .coppr_desc_t				AS [Applies To (COPPR)],
+	--			/* 25	  */	B10.coppr_desc_t				AS [Depends On (COPPR)],
+	--			/* 26	  */	B5 .cobsl_desc_t				As [Standardization level (COBSL)],
+	--			/* 27	  */	B6 .copvc_desc_t				As [Value Type(COPVC)] ,
+	--			/* 28	  */	B13.coppvc_desc_t				As [Period Type(COPPVC)],
+	--			/* 29	  */	B14.coppvu_desc_t				As [Period Unit(COPPVU)],
+				/* 30	  */	A  .prp_prd_vlu					As [Period Number(PRP_PRD_VLU)],
+	--			/* 31	  */	B8 .prpptv_nm					As [Period TextValue(PRPPTV)],
+				/* 32	  */	A  .p_prp_vlu_t_set_id			As [Period TextSet],
+				/* 33	  */	A  .mnm_prp_prd_vlu				As [Period Min],
+				/* 34	  */	A  .max_prp_prd_vlu				As [Period Max],
+				/* 35	  */	A  .PRP_VLU_INCRM_VLU			AS [Period Increment Value],
+				/* 36	  */	A  .deps_on_prp_id,
+				/* 37	  */	A  .deps_on_prp_ord_n,
+				/* 38	  */	A  .prp_inter_dep_prp_id,
+				/* 39	3 */	A  .prp_lim_for_prp_id,
+				/* 40	  */	A  .prph_prsn_ord_n,
+	--							-- mbw: Take the calculation out of the distinct.  This func should be deterministic on the inputs, and shouldn't need to be synced
+	--							--		TODO: Figure whether pulling it out can work, since not all fields are in the table, and the TextOption fields is in the distinct 41 field...
+	--							--		TODO: Decide whether to do this here or if it's pulled out here, or to do this below in a 7 field new table fixing the 6 field CTE
+	--							--				dbo.StringConcat(ISNULL(TextOption,''),'','','','','','','','','','','','','','','','','','','','','','','','',APL_TO_PRP_ORD_N)  as options
+	--							Master.GetProvisionTextOptions	(	
+	--								/* Tbl it is from, or 1015 if not in this resultset */
+	--								/* b4   */	coplt_desc_t,			-- As LineType
+	--								/* b2   */	copptc_desc_t,			-- As SERVICE_PROVISION		
+	--								/* b3   */	copptq_desc_t,			-- As Qualifier
+	--								/* 1015 */	prp_vlu_clmn_c,			--									1015 field NOT in results so need to add to table
+	--								/* in   */	prp_vlu,				--									1015 field     in the results, but func needs float not char
+	--								/* b12  */	copvu_desc_t,			-- As [Value Unit(COPVU)]
+	--								/* in   */	mnm_prp_vlu,			--									1015 field
+	--								/* in   */	max_prp_vlu,			-fs-									1015 field
+	--								/* b11  */	prptv_nm,				-- As [TextValue (PRPTV)]
+	--								/* in   */	prp_vlu_incrm_vlu,		-- as [Period Increment Value]		1015 field 
+	--								/* 1015 */	prp_prd_vlu_clmn_c,		--									1015 field NOT in results so need to add to table
+	--								/* in   */	prp_prd_vlu,			-- as [Period Number(PRP_PRD_VLU)]	1015 field
+	--								/* b14  */	coppvu_desc_t,			-- As [Period Unit(COPPVU)]
+	--								/* in   */	mnm_prp_prd_vlu,		-- as [Period Min] name				1015 field
+	--								/* in   */	max_prp_prd_vlu,		-- as [Period Max] name				1015 field
+	--								/* b8   */	prpptv_nm,				-- As [Period TextValue(PRPPTV)]
+	--								/* b9   */	B9.coppr_desc_t,		-- AS [Applies To (COPPR)],
+	--								/* b10  */	B10.coppr_desc_t ,		-- AS [Depends On (COPPR)],
+	--								/* in   */	prp_prd_vincrm_vlu,
+	--								/*      */	1,
+	--								/*      */	1,
+	--								/* in   */	a.p_prp_vlu_t_set_id	-- This 1015 field is in the results (as [Period TextSet] name)
+	--			/* 41     */	)								as TextOption						-- 6 of 5/6
+
+				-- Extra fields from "A" that need to be saved to run the Master.GetProvisionTextOptions func later
+				/* 42     */ 	A.prp_vlu						as [prp_vlu_InOrigDecimal]
+
+				-- Extra int fields from "A" that are used in the left join replacements
+				/* 43     */ ,	A.bnt_id
+				/* 44     */ ,	A.PRP_TYP_C			
+				/* 45     */ ,	A.prp_typ_qlfr_c		
+				/* 46     */ ,	A.prp_lin_typ_c		
+				/* 47     */ ,	A.prp_stdz_lvl_c		
+				/* 48     */ ,	A.prp_vlu_clmn_c		
+				/* 49     */ ,	A.prp_vlu_typ_c		
+				/* 50     */ ,	A.p_prp_vlu_t_id		
+				/* 51     */ ,	A.apl_to_prp_rel_c	
+				/* 52     */ ,	A.deps_on_prp_rel_c	
+				/* 53     */ ,	A.prp_vlu_t_id		
+				/* 54     */ ,	A.prp_vlu_uom_c		
+				/* 55     */ ,	A.prp_prd_vlu_clmn_c	
+				/* 56     */ ,	A.prp_prd_vlu_uom_c	
 			
 
 
-					-- mbw: On all the straight lookups, just do individual bulk inserts on the values
-		From		[MASTER].[prph_product_provision_history_1015]					A
-		Inner Join	[MASTER].[pr_product]											c	On a.pr_id				=	c.pr_id
-		Inner Join	[MASTER].[prh_product_history]									D	On a.pr_id				=	d.pr_id					And d.pr_stus_c						=	'A'
-		inner join	[MASTER].[COPTT]												c3	on d.PR_TMPLT_TYP_C		=	c3.COPTT_C				and c3.COPTT_STUS_C					=	'A' 
+						-- mbw: On all the straight lookups, just do individual bulk inserts on the values
+			From		[MASTER].[prph_product_provision_history_1015]					A
+			Inner Join	[MASTER].[pr_product]											c	On a.pr_id				=	c.pr_id
+			Inner Join	[MASTER].[prh_product_history]									D	On a.pr_id				=	d.pr_id					And d.pr_stus_c						=	'A'
+			inner join	[MASTER].[COPTT]												c3	on d.PR_TMPLT_TYP_C		=	c3.COPTT_C				and c3.COPTT_STUS_C					=	'A' 
 
-		order by PRPH_REC_ID -- The PK on both tables
-		/* If want to use @sv_id param add the where here... on A.SV_ID 
 
-			-- mbw: there's no reason to join these here... not used in further joins, unless there is a need to check for @PR_ID, @SERVICE_PROVISION or @PRODUCTtYPE which are not in play
-			--		AND: even worse, these 2 tables together are cross-joined 
-			--			 (c2 was in the "and" that is commented out...)
-			--	SO...they are gonna create incorrect data in the Temp.PRPHOptions table!!!
-			Left Join	[MASTER].[copt_producttype]										e	On c.pr_typ_c			=	e.copt_c				And e.copt_stus_c					=	'A'
-			left join	[MASTER].[COPTC_PRODUCT_TYPE_CATEGORIZATION]					c2	on c2.COPTC_C			=	e.COPT_PR_AFL_TYP_C		and c2.COPTC_STUS_C					=	'A'
-		*/
+			-- Add the limitation on the rows
+			where A.PRPH_REC_ID between @row_a and @row_b
 
-		-- Now update with bulk updates what was originally in the crazy big distinct join with all 40+ fields and the crazy left-joins all over
-		-- Now update with bulk updates what was originally in the crazy big distinct join with all 40+ fields and the crazy left-joins all over
+			order by PRPH_REC_ID -- The PK on both tables
+			/* If want to use @sv_id param add the where here... on A.SV_ID 
 
-	  --Left Join	svh_hierarchy													B	On A.sv_id				=	B.sv_id					    
-		-- svh_hierarchy was first, but we'll do that at the bottom
+				-- mbw: there's no reason to join these here... not used in further joins, unless there is a need to check for @PR_ID, @SERVICE_PROVISION or @PRODUCTtYPE which are not in play
+				--		AND: even worse, these 2 tables together are cross-joined 
+				--			 (c2 was in the "and" that is commented out...)
+				--	SO...they are gonna create incorrect data in the Temp.PRPHOptions table!!!
+				Left Join	[MASTER].[copt_producttype]										e	On c.pr_typ_c			=	e.copt_c				And e.copt_stus_c					=	'A'
+				left join	[MASTER].[COPTC_PRODUCT_TYPE_CATEGORIZATION]					c2	on c2.COPTC_C			=	e.COPT_PR_AFL_TYP_C		and c2.COPTC_STUS_C					=	'A'
+			*/
 
-	  --Left Join	[MASTER].[bnt_benefit_tier]								 B1	On A.bnt_id				=	B1.bnt_id				And B1.bnt_stus_c					=	'A'
-	  --Left Join	[MASTER].[copptc_product_provision_type]				 B2	On A.prp_typ_c			=	B2.copptc_c				And Ltrim(Rtrim(B2.copptc_stus_c))	=	'A'
-	  --Left Join	[MASTER].[copptq_product_provision_type_qualifier]		 B3	On A.prp_typ_qlfr_c		=	B3.copptq_c				And B3.copptq_stus_c				=	'A'
-	  --Left Join	[MASTER].[coplt_product_provision_line_type]			 B4	On A.prp_lin_typ_c		=	B4.coplt_c				And B4.coplt_stus_c					=	'A'
-	  --Left Join	[MASTER].[cobsl_product_provision_standardization_level] B5	On A.prp_stdz_lvl_c		=	B5.cobsl_c				And B5.cobsl_stus_c					=	'A'
-	  --Left Join	[MASTER].[copvc_product_value_type]						 B6	On A.prp_vlu_clmn_c		=	B6.copvc_c				And B6.copvc_stus_c					=	'A'
-	  --Left Join	[MASTER].[copvt_product_provision_value_relativity]		 B7	On A.prp_vlu_typ_c		=	B7.copvt_c				And B7.copvt_stus_c					=	'A'
-      --Left Join	[MASTER].[prpptv_product_provision_period_text_value]	 B8	On A.p_prp_vlu_t_set_id	=	B8.p_prp_vlu_t_set_id	And 
-      --																		   A.p_prp_vlu_t_id		=	B8.p_prp_vlu_t_id		And	B8.prpptv_stus_c				=	'A'
+
+
+			-- Now update with bulk updates what was originally in the crazy big distinct join with all 40+ fields and the crazy left-joins all over
+			-- Now update with bulk updates what was originally in the crazy big distinct join with all 40+ fields and the crazy left-joins all over
+
+		  --Left Join	svh_hierarchy													B	On A.sv_id				=	B.sv_id					    
+			-- svh_hierarchy was first, but we'll do that at the bottom
+
+		  --Left Join	[MASTER].[bnt_benefit_tier]								 B1	On A.bnt_id				=	B1.bnt_id				And B1.bnt_stus_c					=	'A'
+		  --Left Join	[MASTER].[copptc_product_provision_type]				 B2	On A.prp_typ_c			=	B2.copptc_c				And Ltrim(Rtrim(B2.copptc_stus_c))	=	'A'
+		  --Left Join	[MASTER].[copptq_product_provision_type_qualifier]		 B3	On A.prp_typ_qlfr_c		=	B3.copptq_c				And B3.copptq_stus_c				=	'A'
+		  --Left Join	[MASTER].[coplt_product_provision_line_type]			 B4	On A.prp_lin_typ_c		=	B4.coplt_c				And B4.coplt_stus_c					=	'A'
+		  --Left Join	[MASTER].[cobsl_product_provision_standardization_level] B5	On A.prp_stdz_lvl_c		=	B5.cobsl_c				And B5.cobsl_stus_c					=	'A'
+		  --Left Join	[MASTER].[copvc_product_value_type]						 B6	On A.prp_vlu_clmn_c		=	B6.copvc_c				And B6.copvc_stus_c					=	'A'
+		  --Left Join	[MASTER].[copvt_product_provision_value_relativity]		 B7	On A.prp_vlu_typ_c		=	B7.copvt_c				And B7.copvt_stus_c					=	'A'
+		  --Left Join	[MASTER].[prpptv_product_provision_period_text_value]	 B8	On A.p_prp_vlu_t_set_id	=	B8.p_prp_vlu_t_set_id	And 
+		  --																		   A.p_prp_vlu_t_id		=	B8.p_prp_vlu_t_id		And	B8.prpptv_stus_c				=	'A'
 insert into #mbwTime (StepName) VALUES ('B1');
---		update a SET [Network Name]					 = LTRIM(RTRIM(B1.bnt_nm))			from Temp.mbwNew_PRPHOptions a inner join [MASTER].[bnt_benefit_tier]								B1 ON a.bnt_id			= B1.bnt_id;
-		update m SET [Network Name]					 = LTRIM(RTRIM(B1.bnt_nm))			from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[bnt_benefit_tier]								B1 ON a.bnt_id			= B1.bnt_id;
+	--		update a SET [Network Name]					 = LTRIM(RTRIM(B1.bnt_nm))			from Temp.mbwNew_PRPHOptions a inner join [MASTER].[bnt_benefit_tier]								B1 ON a.bnt_id			= B1.bnt_id;
+			update m SET [Network Name]					 = LTRIM(RTRIM(B1.bnt_nm))			from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[bnt_benefit_tier]								B1 ON a.bnt_id			= B1.bnt_id;
 
 
 insert into #mbwTime (StepName) VALUES ('B2');
-		update m SET SERVICE_PROVISION				 = LTRIM(RTRIM(B2.copptc_desc_t))	from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[copptc_product_provision_type]					B2 ON a.prp_typ_c		= B2.copptc_c			And Ltrim(Rtrim(B2.copptc_desc_t))	= 'A'
+			update m SET SERVICE_PROVISION				 = LTRIM(RTRIM(B2.copptc_desc_t))	from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[copptc_product_provision_type]					B2 ON a.prp_typ_c		= B2.copptc_c			And Ltrim(Rtrim(B2.copptc_desc_t))	= 'A'
 insert into #mbwTime (StepName) VALUES ('B3');
-		update m SET Qualifier						 = copptq_desc_t					from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[copptq_product_provision_type_qualifier]		B3 On a.prp_typ_qlfr_c	= B3.copptq_c			And				B3.copptq_stus_c	= 'A'
+			update m SET Qualifier						 = copptq_desc_t					from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[copptq_product_provision_type_qualifier]		B3 On a.prp_typ_qlfr_c	= B3.copptq_c			And				B3.copptq_stus_c	= 'A'
 insert into #mbwTime (StepName) VALUES ('B4');
-		update m SET LineType						 = B4 .coplt_desc_t					from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[coplt_product_provision_line_type]				B4 On A.prp_lin_typ_c	= B4.coplt_c			And B4.coplt_stus_c					= 'A'
+			update m SET LineType						 = B4 .coplt_desc_t					from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[coplt_product_provision_line_type]				B4 On A.prp_lin_typ_c	= B4.coplt_c			And B4.coplt_stus_c					= 'A'
 insert into #mbwTime (StepName) VALUES ('B5');
-		update m SET [Standardization level (COBSL)] = B5.cobsl_desc_t					from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[cobsl_product_provision_standardization_level]	B5 On A.prp_stdz_lvl_c	= B5.cobsl_c			And B5.cobsl_stus_c					= 'A'
+			update m SET [Standardization level (COBSL)] = B5.cobsl_desc_t					from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[cobsl_product_provision_standardization_level]	B5 On A.prp_stdz_lvl_c	= B5.cobsl_c			And B5.cobsl_stus_c					= 'A'
 insert into #mbwTime (StepName) VALUES ('B3');
-		update m SET [Value Type(COPVC)]			 = B6 .copvc_desc_t					from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[copvc_product_value_type]						B6 On A.prp_vlu_clmn_c	= B6.copvc_c			And B6.copvc_stus_c					= 'A'
+			update m SET [Value Type(COPVC)]			 = B6 .copvc_desc_t					from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[copvc_product_value_type]						B6 On A.prp_vlu_clmn_c	= B6.copvc_c			And B6.copvc_stus_c					= 'A'
 insert into #mbwTime (StepName) VALUES ('B6');
-		update m SET [Value Relativity(COPVT)]		 = B7 .copvt_desc_t					from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[copvt_product_provision_value_relativity]		B7 On A.prp_vlu_typ_c	= B7.copvt_c			And B7.copvt_stus_c					= 'A'
+			update m SET [Value Relativity(COPVT)]		 = B7 .copvt_desc_t					from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[copvt_product_provision_value_relativity]		B7 On A.prp_vlu_typ_c	= B7.copvt_c			And B7.copvt_stus_c					= 'A'
 insert into #mbwTime (StepName) VALUES ('B8');
-		update m SET [Period TextValue(PRPPTV)]		 = B8.prpptv_nm						from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[prpptv_product_provision_period_text_value]	B8 On A.p_prp_vlu_t_set_id
-																																																																							/*[Period TextSet]*/= B8.p_prp_vlu_t_set_id	And 
-      																																																																						A.p_prp_vlu_t_id	= B8.p_prp_vlu_t_id		And	B8.prpptv_stus_c				= 'A'
-	  --Left Join	[MASTER].[coppr_product_provision_relationship]					B9	On A.apl_to_prp_rel_c	=	B9.coppr_c				And B9.coppr_stus_c					=	'A'
-	  --Left Join	[MASTER].[coppr_product_provision_relationship]					B10	On A.deps_on_prp_rel_c	=	B10.coppr_c				And B10.coppr_stus_c				=	'A'
-	  --Left Join	[MASTER].[prptv_product_provision_text_value]					B11	On A.prp_vlu_t_set_id	=	B11.prp_vlu_t_set_id	And 
-	  --																				   A.prp_vlu_t_id		=	B11.prp_vlu_t_id		And	B11.prptv_stus_c				=	'A'
-	  --Left Join	[MASTER].[copvu_product_provision_value_unit]					B12	On A.prp_vlu_uom_c		=	B12.copvu_c				And B12.copvu_stus_c				=	'A'
-	  --Left Join	[MASTER].[coppvc_product_provision_period]						B13	On A.prp_prd_vlu_clmn_c	=	B13.coppvc_c			And B13.coppvc_stus_c				=	'A'
-	  --Left Join   [MASTER].[coppvu_product_provision_period_value_unit_of_measure]B14	On A.prp_prd_vlu_uom_c	=	B14.coppvu_c			And B14.coppvu_stus_c				=	'A'
+			update m SET [Period TextValue(PRPPTV)]		 = B8.prpptv_nm						from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[prpptv_product_provision_period_text_value]	B8 On A.p_prp_vlu_t_set_id
+																																																																								/*[Period TextSet]*/= B8.p_prp_vlu_t_set_id	And 
+      																																																																							A.p_prp_vlu_t_id	= B8.p_prp_vlu_t_id		And	B8.prpptv_stus_c				= 'A'
+		  --Left Join	[MASTER].[coppr_product_provision_relationship]					B9	On A.apl_to_prp_rel_c	=	B9.coppr_c				And B9.coppr_stus_c					=	'A'
+		  --Left Join	[MASTER].[coppr_product_provision_relationship]					B10	On A.deps_on_prp_rel_c	=	B10.coppr_c				And B10.coppr_stus_c				=	'A'
+		  --Left Join	[MASTER].[prptv_product_provision_text_value]					B11	On A.prp_vlu_t_set_id	=	B11.prp_vlu_t_set_id	And 
+		  --																				   A.prp_vlu_t_id		=	B11.prp_vlu_t_id		And	B11.prptv_stus_c				=	'A'
+		  --Left Join	[MASTER].[copvu_product_provision_value_unit]					B12	On A.prp_vlu_uom_c		=	B12.copvu_c				And B12.copvu_stus_c				=	'A'
+		  --Left Join	[MASTER].[coppvc_product_provision_period]						B13	On A.prp_prd_vlu_clmn_c	=	B13.coppvc_c			And B13.coppvc_stus_c				=	'A'
+		  --Left Join   [MASTER].[coppvu_product_provision_period_value_unit_of_measure]B14	On A.prp_prd_vlu_uom_c	=	B14.coppvu_c			And B14.coppvu_stus_c				=	'A'
 insert into #mbwTime (StepName) VALUES ('B9');
-		update m SET [Applies To (COPPR)]	= B9 .coppr_desc_t	from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[coppr_product_provision_relationship]					B9	On A.apl_to_prp_rel_c	=	B9.coppr_c				And B9.coppr_stus_c		=	'A'
+			update m SET [Applies To (COPPR)]	= B9 .coppr_desc_t	from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[coppr_product_provision_relationship]					B9	On A.apl_to_prp_rel_c	=	B9.coppr_c				And B9.coppr_stus_c		=	'A'
 insert into #mbwTime (StepName) VALUES ('B10');
-		update m SET [Depends On (COPPR)]	= B10.coppr_desc_t	from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[coppr_product_provision_relationship]					B10	On A.deps_on_prp_rel_c	=	B10.coppr_c				And B10.coppr_stus_c	=	'A'
+			update m SET [Depends On (COPPR)]	= B10.coppr_desc_t	from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[coppr_product_provision_relationship]					B10	On A.deps_on_prp_rel_c	=	B10.coppr_c				And B10.coppr_stus_c	=	'A'
 insert into #mbwTime (StepName) VALUES ('B11');
-		update m SET [TextValue (PRPTV)]	= B11.prptv_nm		from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[prptv_product_provision_text_value]					B11	On A.prp_vlu_t_set_id	=	B11.prp_vlu_t_set_id	And 
-	  																																																																		   A.prp_vlu_t_id		=	B11.prp_vlu_t_id		And	B11.prptv_stus_c	=	'A'
+			update m SET [TextValue (PRPTV)]	= B11.prptv_nm		from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[prptv_product_provision_text_value]					B11	On A.prp_vlu_t_set_id	=	B11.prp_vlu_t_set_id	And 
+	  																																																																			   A.prp_vlu_t_id		=	B11.prp_vlu_t_id		And	B11.prptv_stus_c	=	'A'
 insert into #mbwTime (StepName) VALUES ('B12');
-		update m SET [Value Unit(COPVU)]	= B12.copvu_desc_t	from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[copvu_product_provision_value_unit]					B12	On A.prp_vlu_uom_c		=	B12.copvu_c				And B12.copvu_stus_c	=	'A'
+			update m SET [Value Unit(COPVU)]	= B12.copvu_desc_t	from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[copvu_product_provision_value_unit]					B12	On A.prp_vlu_uom_c		=	B12.copvu_c				And B12.copvu_stus_c	=	'A'
 insert into #mbwTime (StepName) VALUES ('B13');
-		update m SET [Period Type(COPPVC)]	= B13.coppvc_desc_t	from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[coppvc_product_provision_period]						B13	On A.prp_prd_vlu_clmn_c	=	B13.coppvc_c			And B13.coppvc_stus_c	=	'A'
+			update m SET [Period Type(COPPVC)]	= B13.coppvc_desc_t	from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[coppvc_product_provision_period]						B13	On A.prp_prd_vlu_clmn_c	=	B13.coppvc_c			And B13.coppvc_stus_c	=	'A'
 insert into #mbwTime (StepName) VALUES ('B14');
-		update m SET [Period Unit(COPPVU)]	= B14.coppvu_desc_t from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id inner join [MASTER].[coppvu_product_provision_period_value_unit_of_measure]	B14	On A.prp_prd_vlu_uom_c	=	B14.coppvu_c			And B14.coppvu_stus_c	=	'A'
+			update m SET [Period Unit(COPPVU)]	= B14.coppvu_desc_t from Temp.mbwNew_PRPHOptions m inner join [MASTER].[prph_product_provision_history_1015] a on m.prph_rec_id = a.prph_rec_id and a.PRPH_REC_ID between @row_a and @row_b inner join [MASTER].[coppvu_product_provision_period_value_unit_of_measure]	B14	On A.prp_prd_vlu_uom_c	=	B14.coppvu_c			And B14.coppvu_stus_c	=	'A'
 
 
+			-- Now need to d svh_hierarchy
+		  --Left Join	svh_hierarchy	B	On A.sv_id				=	B.sv_id					    
 
-		-- Now need to d svh_hierarchy
-	  --Left Join	svh_hierarchy	B	On A.sv_id				=	B.sv_id					    
+			-- Move up
+			select @row_a = @row_a + @BATCH_COUNT
+			select @row_b = @row_b + @BATCH_COUNT
+			
+		end -- On looping
 
 /* This is execution on RPTeBS)enGen_SHC_DEV as wgsuser...
 	--- Execution Time Summary ---
@@ -641,7 +714,7 @@ ORDER BY StepNumber;
 --			-- Clean up
 --			DROP TABLE #mbwTime;
 --			
-fs
+
 /*
 with all indexes over 30??
 
@@ -727,36 +800,88 @@ B13	15554	15.55	       15.55	0.79
 B14	20144	20.14	       20.14	1.03
 
 UAT
-																					add here with not joining through 1015 with order by and no idexes		Now joining to original table which has FKs to the lookup tables thorugh the PK on 1015 and my new one
-																					add here with not joining through 1015 with order by and no idexes			No indexes on mbwNew			Add indexes
-																					add here with not joining through 1015 with order by and no idexes			Through 1015	add order by	with order by
-																					add here with not joining through 1015 with order by and no idexes		
-											No index		With index				add here with not joining through 1015 with order by and no idexes			
-1	svh_heirarchy CTE							0.11	        0.10				add here with not joining through 1015 with order by and no idexes				     0.10	     0.10        0.10
-2	insert into Temp.mbwNew_PRPHOptions	      310.62	      997.35	much larger	add here with not joining through 1015 with order by and no idexes				   266.96	   258.36      982.13
-3	B1									      144.71	      173.66				add here with not joining through 1015 with order by and no idexes				   320.49	   254.16      379.91
-4	B2									        0.31	        0.57				add here with not joining through 1015 with order by and no idexes				     0.93	     0.67        0.49
-5	B3									       17.60	       25.92				add here with not joining through 1015 with order by and no idexes				    10.62	    11.79       12.54
-6	B4									        9.60	        9.12				add here with not joining through 1015 with order by and no idexes				     4.55	     4.90        5.46
-7	B5									      221.30	      202.90				add here with not joining through 1015 with order by and no idexes				   160.21	   156.50      393.20
-8	B3									      277.52	      194.98				add here with not joining through 1015 with order by and no idexes				   153.11	   157.55      151.47
-9	B6									       55.24	       49.69				add here with not joining through 1015 with order by and no idexes				    33.34	    29.70       31.95
-10	B8									        9.21	       17.92				add here with not joining through 1015 with order by and no idexes				     4.80	     5.80        5.45
-11	B9									       51.55	       21.88	quicker		add here with not joining through 1015 with order by and no idexes				    33.11	    33.06       29.74
-12	B10									       25.35	        1.57	much quickeradd here with not joining through 1015 with order by and no idexes				    26.07	    25.01       25.03
-13	B11									      159.21	      193.88				add here with not joining through 1015 with order by and no idexes				   101.78	   101.13       99.93
-14	B12									       53.01	       35.70	quicker		add here with not joining through 1015 with order by and no idexes				    22.67	    22.56       23.29
-15	B13									       35.36	       15.55	much quickeradd here with not joining through 1015 with order by and no idexes				    27.89	    27.85       22.41
-16	B14									       11.39	       20.14				add here with not joining through 1015 with order by and no idexes				     5.10	     5.05        5.50
-																					add here with not joining through 1015 with order by and no idexes		
-											   23:03           32:41																									19:34	    18:16		36:11
+																							Now joining to original table which has FKs to the lookup tables thorugh the PK on 1015 and my new one
+																								No indexes on mbwNew			Add indexes
+																								Through 1015	add order by	with order by
+																							
+											No index		With index							
+1	svh_heirarchy CTE							0.11	        0.10								     0.10	     0.10        0.10
+2	insert into Temp.mbwNew_PRPHOptions	      310.62	      997.35	much larger					   266.96	   258.36      982.13
+3	B1									      144.71	      173.66								   320.49	   254.16      379.91
+4	B2									        0.31	        0.57								     0.93	     0.67        0.49
+5	B3									       17.60	       25.92								    10.62	    11.79       12.54
+6	B4									        9.60	        9.12								     4.55	     4.90        5.46
+7	B5									      221.30	      202.90								   160.21	   156.50      393.20
+8	B3									      277.52	      194.98								   153.11	   157.55      151.47
+9	B6									       55.24	       49.69								    33.34	    29.70       31.95
+10	B8									        9.21	       17.92								     4.80	     5.80        5.45
+11	B9									       51.55	       21.88	quicker						    33.11	    33.06       29.74
+12	B10									       25.35	        1.57	much quicker				    26.07	    25.01       25.03
+13	B11									      159.21	      193.88								   101.78	   101.13       99.93
+14	B12									       53.01	       35.70	quicker						    22.67	    22.56       23.29
+15	B13									       35.36	       15.55	much quicker				    27.89	    27.85       22.41
+16	B14									       11.39	       20.14								     5.10	     5.05        5.50
+																							
+											   23:03           32:41									19:34	    18:16		36:11
 
 												
-						working			next need to try bulk inserts of 50k not all at once		BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...		also no index, NOT thrugh 1015 but with order by
-						working			next need to try bulk inserts of 50k not all at once 		BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...
-						working			next need to try bulk inserts of 50k not all at once 		BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...
-						working			next need to try bulk inserts of 50k not all at once 		BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...
-						working			next need to try bulk inserts of 50k not all at once 		BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...
+
+						working				BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...		also no index, NOT thrugh 1015 but with order by
+						working				BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...
+						working				BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...
+						working				BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...
+						working				BUT ALSO FIND OUT WHY THE TABLES ARE 16,832 IN UAT WITH THEIR SP AND 19,261,548 FOR MINE...											
+
+
+Now do 50,000 at a time, all through 1015
+																																																							still no index in mbw
+Withindexes and order by																														No indexes on mbwNew														all updates 50k each
+StepNumber	StepName										StepDurationMs	DurationSec	TotalTimeSec	StepPct		CumulativePct	|	StepNumber	StepDurationMs	DurationSec	TotalTimeSec	StepPct		CumulativePct		!
+402			19,956,765 =  8,161,537,709 ..  8,162,150,520	180	0.18		513.60		0.02			67.44						|	402			275	0.28		139.10		0.07			35.72							!
+403			B1												84059			84.06		597.66			11.04		78.48			|	403			83242			83.24		222.34			21.38		57.10				!
+404			B2												197				0.20		597.86			0.03		78.51			|	404			305				0.31		222.65			0.08		57.18				!
+405			B3												3603			3.60		601.46			0.47		78.98			|	405			3701			3.70		226.35			0.95		58.13				!
+406			B4												1605			1.61		603.07			0.21		79.19			|	406			1697			1.70		228.05			0.44		58.56				!
+407			B5												51245			51.25		654.31			6.73		85.92			|	407			52853			52.85		280.90			13.57		72.14				!
+408			B3												50593			50.59		704.90			6.64		92.57			|	408			49540			49.54		330.44			12.72		84.86				!
+409			B6												5505			5.51		710.41			0.72		93.29			|	409			5612			5.61		336.05			1.44		86.30				!
+410			B8												1960			1.96		712.37			0.26		93.55			|	410			2137			2.14		338.19			0.55		86.85				!
+411			B9												3486			3.49		715.86			0.46		94.00			|	411			3702			3.70		341.89			0.95		87.80				!
+412			B10												401				0.40		716.26			0.05		94.06			|	412			880				0.88		342.77			0.23		88.03				!
+413			B11												33462			33.46		749.72			4.39		98.45			|	413			34530			34.53		377.30			8.87		96.89				!
+414			B12												6398			6.40		756.12			0.84		99.29			|	414			6498			6.50		383.80			1.67		98.56				!
+415			B13												3342			3.34		759.46			0.44		99.73			|	415			3461			3.46		387.26			0.89		99.45				!
+416			B14												2055			2.06		761.51			0.27		100.00			|	416			2139			2.14		389.40			0.55		100.00				!
+417			End												NULL			NULL		761.51			NULL		100.00			|	417			NULL			NULL		389.40			NULL		100.00				!		total was 13:26  6003   805.68
+																					all slightly smaller														all slightly bigger
+																					but the first insert														but first insert way better
+																					is much larger																is way better
+
+
+																					
+
+
+
+
+StepNumber	StepName										StepDurationMs	DurationSec	TotalTimeSec	StepPct		CumulativePct
+402			19,956,765 =  8,161,537,710 ..  8,162,150,520	275	0.28		139.10		0.07			35.72
+403			B1												83242			83.24		222.34			21.38		57.10
+404			B2												305				0.31		222.65			0.08		57.18
+405			B3												3701			3.70		226.35			0.95		58.13
+406			B4												1697			1.70		228.05			0.44		58.56
+407			B5												52853			52.85		280.90			13.57		72.14
+408			B3												49540			49.54		330.44			12.72		84.86
+409			B6												5612			5.61		336.05			1.44		86.30
+410			B8												2137			2.14		338.19			0.55		86.85
+411			B9												3702			3.70		341.89			0.95		87.80
+412			B10												880				0.88		342.77			0.23		88.03
+413			B11												34530			34.53		377.30			8.87		96.89
+414			B12												6498			6.50		383.80			1.67		98.56
+415			B13												3461			3.46		387.26			0.89		99.45
+416			B14												2139			2.14		389.40			0.55		100.00
+417			End												NULL			NULL		389.40			NULL		100.00
+
+
 
 
         0.10
