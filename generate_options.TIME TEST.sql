@@ -12,7 +12,7 @@ DECLARE @Step3Time DATETIME2;
 DECLARE @EndTime   DATETIME2;
 
 
-
+set statistics time on
 
 --	/****** Object:  StoredProcedure [Temp].[Getproductprovisionlines]    Script Date: 6/12/2025 8:59:18 AM ******/
 --	SET ANSI_NULLS ON

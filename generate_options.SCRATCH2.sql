@@ -59,7 +59,7 @@
 if 1=2 begin
 	
 	-- Both
-	select count(1) from RPTeBS_enGen_DEV.Temp.PRPHOptions					-- all 3 are invalid object
+	select count(1) from RPTeBS_enGen_DEV.Temp.PRPHOptions					-- all 3 are invalid object		Dev has no MASTER.svh_medical_service_history
 	select count(1) from RPTeBS_enGen_DEV.Temp.FullProvisionOption			-- all 3 are invalid object
 	select count(1) from RPTeBS_enGen_DEV.Temp.FinalProvisionOptions		-- all 3 are invalid object
 	
@@ -89,5 +89,12 @@ if 1=2 begin
 	select count(1) from RPTeBS_enGen_WGS.Temp.PRPHOptions					-- 0
 	select count(1) from RPTeBS_enGen_WGS.Temp.FullProvisionOption			-- 0
 	select count(1) from RPTeBS_enGen_WGS.Temp.FinalProvisionOptions		-- this is invalid object
+
+
+
+	-- mbw versions of the ORIGINAL LOGIC, but it is super quick...
+	select count(1) from RPTeBS_enGen_SHC_DEV.Temp.mbw_PRPHOptions				-- 214930
+	select count(1) from RPTeBS_enGen_SHC_DEV.Temp.mbw_FullProvisionOption		-- 156106
+	select count(1) from RPTeBS_enGen_SHC_DEV.Temp.mbw_FinalProvisionOptions	-- 214984
 
 end
